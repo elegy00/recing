@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.6",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You extract recipes from fetched web pages. Return only JSON that matches schema recipe_extraction.v1. Use null or empty arrays for missing optional data. Do not invent facts."
+    },
+    {
+      "role": "user",
+      "content": "Source URL: https://example.com/recipes/lemon-pasta\nContent-Type: text/html; charset=utf-8\n\nExtract the recipe from this page content:\n<html><h1>Lemon Pasta</h1><ul><li>12 ounces spaghetti</li><li>2 tablespoons lemon juice</li></ul><ol><li>Cook spaghetti.</li><li>Toss with lemon juice.</li></ol></html>"
+    }
+  ],
+  "temperature": 0,
+  "top_p": 1,
+  "max_tokens": 4096,
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "recipe_extraction_v1",
+      "strict": true,
+      "schema": {
+        "$ref": "recipe-extraction.schema.json"
+      }
+    }
+  }
+}

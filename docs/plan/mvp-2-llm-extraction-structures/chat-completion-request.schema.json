@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recing.dev/schemas/llm-chat-completion-request.v1.schema.json",
+  "title": "LlmChatCompletionRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["model", "messages", "temperature", "top_p", "max_tokens", "response_format"],
+  "properties": {
+    "model": { "type": "string", "minLength": 1 },
+    "messages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "type": "string", "enum": ["system", "user"] },
+          "content": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+    "top_p": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+    "max_tokens": { "type": "integer", "minimum": 1 },
+    "response_format": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "json_schema"],
+      "properties": {
+        "type": { "const": "json_schema" },
+        "json_schema": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["name", "strict", "schema"],
+          "properties": {
+            "name": { "const": "recipe_extraction_v1" },
+            "strict": { "const": true },
+            "schema": { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}

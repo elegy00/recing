@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recing.dev/schemas/recipe-extraction.v1.schema.json",
+  "title": "RecipeExtractionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "sourceUrl",
+    "recipeName",
+    "yield",
+    "prepTime",
+    "cookTime",
+    "totalTime",
+    "ingredients",
+    "instructions",
+    "notes",
+    "unusableReason"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "recipe_extraction.v1" },
+    "status": { "type": "string", "enum": ["extracted", "unusable"] },
+    "sourceUrl": { "type": "string", "format": "uri" },
+    "recipeName": { "type": ["string", "null"], "minLength": 1 },
+    "yield": { "type": ["string", "null"], "minLength": 1 },
+    "prepTime": { "type": ["string", "null"], "minLength": 1 },
+    "cookTime": { "type": ["string", "null"], "minLength": 1 },
+    "totalTime": { "type": ["string", "null"], "minLength": 1 },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["quantity", "unit", "name", "note", "originalText"],
+        "properties": {
+          "quantity": { "type": ["string", "null"], "minLength": 1 },
+          "unit": { "type": ["string", "null"], "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "note": { "type": ["string", "null"], "minLength": 1 },
+          "originalText": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "instructions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepNumber", "text", "timer"],
+        "properties": {
+          "stepNumber": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string", "minLength": 1 },
+          "timer": { "type": ["string", "null"], "minLength": 1 }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "unusableReason": { "type": ["string", "null"], "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "extracted" } } },
+      "then": {
+        "properties": {
+          "recipeName": { "type": "string", "minLength": 1 },
+          "ingredients": { "minItems": 1 },
+          "instructions": { "minItems": 1 },
+          "unusableReason": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "unusable" } } },
+      "then": {
+        "properties": {
+          "recipeName": { "type": "null" },
+          "ingredients": { "maxItems": 0 },
+          "instructions": { "maxItems": 0 },
+          "unusableReason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ]
+}
