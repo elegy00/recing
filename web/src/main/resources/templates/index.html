@@ -1,14 +1,46 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Recing - Recipe URL Fetcher</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+        form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        input[type="url"] { flex: 1; padding: 0.5rem; font-size: 1rem; }
+        button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+        .error { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
+        .success { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid #e5e7eb; }
+    </style>
+</head>
 <body>
 <h1>Recing</h1>
+
 <form method="post" action="/recipes">
-    <label for="url">Recipe URL</label>
-    <input id="url" name="url" type="url" required />
+    <label for="url">Recipe URL</label><br/>
+    <input id="url" name="url" type="url" required th:value="${submittedUrl}" />
     <button type="submit">Submit</button>
 </form>
 
-<p th:if="${submittedUrl}">
+<!-- Error banner -->
+<div class="error" th:if="${error}" th:text="${error}"></div>
+
+<!-- Success metadata -->
+<p th:if="${submittedUrl && fetchStatus == 'success'}" class="success">
+    Page fetched successfully.
+</p>
+
+<table th:if="${submittedUrl && fetchStatus == 'success'}">
+    <tr><th>Submitted URL</th><td th:text="${submittedUrl}"></td></tr>
+    <tr><th>Final URL</th><td th:text="${finalUrl}"></td></tr>
+    <tr><th>Status</th><td th:text="${httpStatus} + ' OK'"></td></tr>
+    <tr><th>Content Type</th><td th:text="${contentType}"></td></tr>
+    <tr><th>Size</th><td th:text="${byteCount} + ' bytes'"></td></tr>
+</table>
+
+<!-- Previous submission without fetch result -->
+<p th:if="${submittedUrl && fetchStatus != 'success'}">
     Submitted: <span th:text="${submittedUrl}"></span>
 </p>
 </body>
