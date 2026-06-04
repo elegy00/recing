@@ -19,6 +19,15 @@ public class LlmExtractionException extends RuntimeException {
         return code;
     }
 
+    /** Returns a user-safe message for display. */
+    public String getUserMessage() {
+        // First line of the message is the user-facing part
+        String msg = getMessage();
+        int parenIdx = msg.indexOf('(');
+        if (parenIdx > 0) return msg.substring(0, parenIdx).trim();
+        return msg;
+    }
+
     private static String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max);

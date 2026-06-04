@@ -23,8 +23,9 @@
     <button type="submit">Submit</button>
 </form>
 
-<!-- Error banner -->
+<!-- Error banner (fetch or LLM) -->
 <div class="error" th:if="${error != null}" th:text="${error}"></div>
+<div class="error" th:if="${llmError != null}" th:text="${llmError}"></div>
 
 <!-- Success metadata -->
 <p th:if="${submittedUrl != null && fetchStatus == 'success'}" class="success">
