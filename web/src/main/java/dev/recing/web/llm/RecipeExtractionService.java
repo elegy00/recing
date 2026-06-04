@@ -186,6 +186,12 @@ public class RecipeExtractionService {
                 completionTokens
             );
 
+            // Debug: log the full parsed extraction as JSON
+            try {
+                log.info("LLM extraction result: {}", MAPPER.writeValueAsString(extraction));
+            } catch (JsonProcessingException e) {
+                log.warn("Could not serialize extraction for logging: {}", truncate(e.getMessage(), 200));
+            }
             return new LlmExtractionResult(extraction, metadata);
 
         } catch (LlmExtractionException e) {
