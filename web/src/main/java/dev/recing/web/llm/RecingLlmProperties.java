@@ -13,7 +13,7 @@ public record RecingLlmProperties(
     public RecingLlmProperties {
         if (endpoint == null || endpoint.isBlank()) endpoint = "http://localhost:8080/v1/chat/completions";
         if (model == null || model.isBlank()) model = "qwen3.6";
-        if (timeoutSeconds <= 0) timeoutSeconds = 60;
+        if (timeoutSeconds <= 0) timeoutSeconds = 180;
         if (maxContentChars <= 0) maxContentChars = 60000;
     }
 }

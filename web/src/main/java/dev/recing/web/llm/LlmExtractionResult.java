@@ -19,5 +19,10 @@ public record LlmExtractionResult(
         LlmErrorCode errorCode,
         int promptTokens,
         int completionTokens
-    ) {}
+    ) {
+        public double tokensPerSecond() {
+            if (durationMs <= 0 || completionTokens == 0) return 0;
+            return Math.round((completionTokens * 100.0 / durationMs)) / 100.0;
+        }
+    }
 }

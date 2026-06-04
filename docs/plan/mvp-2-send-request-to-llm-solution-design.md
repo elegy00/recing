@@ -91,7 +91,7 @@ flowchart LR
 4. Build request JSON matching `chat-completion-request.schema.json` with:
    - endpoint default: `http://localhost:8080/v1/chat/completions`;
    - model default: `qwen3.6`;
-   - `temperature: 0`, `top_p: 1`, `max_tokens: 4096`;
+   - `temperature: 0`, `top_p: 1`, `max_tokens: 1024`;
    - `response_format.type: json_schema` using inlined `recipe-extraction.schema.json`.
 5. Send one POST request using Java 17 `HttpClient` with connect and request timeouts.
 6. Retry only once for transient connection failure or 5xx response; do not retry malformed JSON/schema failures.
@@ -131,7 +131,7 @@ Add simple Spring properties only:
 ```properties
 recing.llm.endpoint=http://localhost:8080/v1/chat/completions
 recing.llm.model=qwen3.6
-recing.llm.timeout-seconds=60
+recing.llm.timeout-seconds=180
 recing.llm.max-content-chars=300000
 ```
 

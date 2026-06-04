@@ -8,7 +8,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Base64;
 
 /**
  * Thin wrapper around Java 17 HttpClient for llama.cpp /v1/chat/completions endpoint.
@@ -17,6 +16,7 @@ import java.util.Base64;
 public class LlamaClient {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final int MAX_COMPLETION_TOKENS = 24576;
 
     private final String endpoint;
     private final Duration timeout;
@@ -47,7 +47,7 @@ public class LlamaClient {
         HttpResponse<String> response = HttpClient.newHttpClient()
                 .send(request, HttpResponse.BodyHandlers.ofString());
 
-        if (response.statusCode() >= 500) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new java.io.IOException("HTTP " + response.statusCode() + ": " + response.body().substring(0, Math.min(response.body().length(), 200)));
         }
 
@@ -82,8 +82,14 @@ public class LlamaClient {
         root.put("model", model);
         root.put("temperature", 0.0);
         root.put("top_p", 1.0);
-        root.put("max_tokens", 4096);
+        root.put("max_tokens", MAX_COMPLETION_TOKENS);
         root.put("stream", false);
+
+        // Qwen3 thinking can consume the completion budget before JSON is emitted.
+        // llama.cpp supports this chat-template option for compatible Qwen templates.
+        var chatTemplateKwargs = MAPPER.createObjectNode();
+        chatTemplateKwargs.put("enable_thinking", false);
+        root.set("chat_template_kwargs", chatTemplateKwargs);
 
         // response_format with inlined JSON schema
         var responseFormat = MAPPER.createObjectNode();

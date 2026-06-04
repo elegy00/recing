@@ -11,15 +11,17 @@ public final class RecipeExtractionPrompt {
     /** System prompt defining extraction rules and constraints. */
     public static String systemPrompt(String schemaVersion) {
         return """
+            /no_think
             You are a recipe extraction assistant. Extract structured recipe data from the provided page content.
             
             Rules:
-            1. Return ONLY valid JSON matching this schema version: %s — no markdown, no explanation text, no surrounding code fences.
-            2. Do NOT invent or guess any information. If data is not present in the page, use null (objects/strings) or empty lists (arrays).
-            3. Ingredients should stay close to the page wording — split quantity, unit, name, and note when possible, but always include originalText.
-            4. Instructions must be ordered with stepNumber starting at 1 and incrementing by 1.
-            5. If the page does not contain a recognizable recipe (e.g., it is a blog about cooking equipment), set status to "unusable" and explain why in unusableReason.
-            6. For valid recipes, set status to "extracted". A valid extraction requires at least one ingredient and one instruction plus a recipeName.
+            1. Return ONLY one valid JSON object matching this schema version: %s — no markdown, no explanation text, no filenames, no surrounding code fences.
+            2. Do not output filenames like result.json. The response body must be the JSON object itself.
+            3. Do NOT invent or guess any information. If data is not present in the page, use null (objects/strings) or empty lists (arrays).
+            4. Ingredients should stay close to the page wording — split quantity, unit, name, and note when possible, but always include originalText.
+            5. Instructions must be ordered with stepNumber starting at 1 and incrementing by 1.
+            6. If the page does not contain a recognizable recipe (e.g., it is a blog about cooking equipment), set status to "unusable" and explain why in unusableReason.
+            7. For valid recipes, set status to "extracted". A valid extraction requires at least one ingredient and one instruction plus a recipeName.
             
             Response format:
             {
@@ -43,6 +45,8 @@ public final class RecipeExtractionPrompt {
     /** User message template with source content. */
     public static String userPrompt(String url, String contentType, boolean truncated, String title, String content) {
         StringBuilder sb = new StringBuilder();
+        sb.append("/no_think\n");
+        sb.append("Return only the JSON object. Do not include markdown, filenames, explanations, or code fences.\n");
         sb.append("Source URL: ").append(url).append('\n');
         if (title != null && !title.isBlank()) {
             sb.append("Page Title: ").append(title).append('\n');

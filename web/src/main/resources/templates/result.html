@@ -25,26 +25,32 @@
 <a class="back" href="/">&larr; Submit another URL</a>
 
 <!-- Unusable page -->
-<div th:if="${extraction.unusable != null && extraction.unusable.isUnusable()}" class="unusable">
+<div th:if="${extraction.status == 'unusable'}" class="unusable">
     <h2>No Recipe Found</h2>
     <p th:text="${extraction.unusableReason}"></p>
 </div>
 
 <!-- Valid extraction -->
-<div th:if="${extraction.valid and !extraction.unusable.isUnusable()}">
+<div th:if="${extraction.status != 'unusable'}">
     <h1 th:text="${extraction.recipeName}">Recipe Name</h1>
     <div class="meta" th:if="${extraction.description != null && !extraction.description.isBlank()}" th:text="${extraction.description}"></div>
 
     <!-- Time info -->
     <div class="section" th:if="${(extraction.prepTime != null && !extraction.prepTime.isBlank()) or (extraction.cookTime != null && !extraction.cookTime.isBlank()) or (extraction.totalTime != null && !extraction.totalTime.isBlank())}">
-        <span th:text="'Prep: ' + extraction.prepTime" th:if="${extraction.prepTime != null && !extraction.prepTime.isBlank()}"></span>
-        <span th:if="${(extraction.prepTime != null && !extraction.prepTime.isBlank()) and (extraction.cookTime != null && !extraction.cookTime.isBlank())}"> · </span>
-        <span th:text="'Cook: ' + extraction.cookTime" th:if="${extraction.cookTime != null && !extraction.cookTime.isBlank()}"></span>
-        <span th:if="${(extraction.totalTime != null && !extraction.totalTime.isBlank())}" th:text="', Total: ' + extraction.totalTime"></span>
+        <span th:if="${extraction.prepTime != null && !extraction.prepTime.isBlank()}" th:text="'Prep: ' + extraction.prepTime"></span>
+        <span th:if="${(extraction.prepTime != null && !extraction.prepTime.isBlank()) and (extraction.cookTime != null && !extraction.cookTime.isBlank())}">
+            &middot;
+        </span>
+        <span th:if="${extraction.cookTime != null && !extraction.cookTime.isBlank()}" th:text="'Cook: ' + extraction.cookTime"></span>
+        <span th:if="${extraction.totalTime != null && !extraction.totalTime.isBlank()}">
+            , Total: <span th:text="${extraction.totalTime}"></span>
+        </span>
     </div>
 
     <!-- Servings -->
-    <p class="meta" th:if="${extraction.servings != null && !extraction.servings.isBlank()}" th:text="'Servings: ' + extraction.servings"></p>
+    <p class="meta" th:if="${extraction.servings != null && !extraction.servings.isBlank()}">
+        Servings: <span th:text="${extraction.servings}"></span>
+    </p>
 
     <!-- Ingredients -->
     <div class="section" th:if="${!extraction.ingredients.isEmpty()}">
@@ -58,7 +64,9 @@
     <div class="section" th:if="${!extraction.instructions.isEmpty()}">
         <h2>Instructions</h2>
         <ol class="instructions-list">
-            <li th:each="inst : ${extraction.instructions}" th:text="'Step ' + inst.stepNumber + ': ' + inst.text"></li>
+            <li th:each="inst : ${extraction.instructions}">
+                Step <span th:text="${inst.stepNumber}"></span>: <span th:text="${inst.text}"></span>
+            </li>
         </ol>
     </div>
 </div>
@@ -70,6 +78,7 @@
         <tr><th>Duration</th><td th:text="${llmMetadata.durationMs + ' ms'}"></td></tr>
         <tr><th>Prompt tokens</th><td th:text="${llmMetadata.promptTokens}"></td></tr>
         <tr><th>Completion tokens</th><td th:text="${llmMetadata.completionTokens}"></td></tr>
+        <tr><th>Tokens / sec</th><td><span th:text="${#numbers.formatDecimal(llmMetadata.tokensPerSecond(), 1, 2)}" th:if="${llmMetadata.tokensPerSecond() > 0}"></span><span th:if="${llmMetadata.tokensPerSecond() == 0}">—</span></td></tr>
     </table>
 </div>
 

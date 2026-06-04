@@ -38,7 +38,8 @@ class RecipeExtractionServiceTest {
         assertEquals("test-model", request.get("model").asText());
         assertEquals(0.0, request.get("temperature").asDouble());
         assertEquals(1.0, request.get("top_p").asDouble());
-        assertEquals(4096, request.get("max_tokens").asInt());
+        assertEquals(24576, request.get("max_tokens").asInt());
+        assertFalse(request.get("chat_template_kwargs").get("enable_thinking").asBoolean());
 
         JsonNode messages = request.get("messages");
         assertNotNull(messages);
@@ -132,7 +133,7 @@ class RecipeExtractionServiceTest {
         RecingLlmProperties defaults = new RecingLlmProperties(null, null, 0, 0);
         assertEquals("http://localhost:8080/v1/chat/completions", defaults.endpoint());
         assertEquals("qwen3.6", defaults.model());
-        assertEquals(60, defaults.timeoutSeconds());
+        assertEquals(180, defaults.timeoutSeconds());
         assertEquals(60000, defaults.maxContentChars());
     }
 

@@ -47,7 +47,7 @@ Design review of `mvp-2-send-request-to-llm-solution-design.md`. All decisions f
 - **Fields:** `modelEndpoint`, `model`, `durationMs`, `promptVersion`, `schemaVersion`, `requestContentChars`, `truncatedInput`, `parsedAsExpected`, `httpStatusCode`, `errorCode`, plus token usage (`promptTokens`, `completionTokens`).
 
 ## 14. Timeout Configuration
-- **Decision:** Single `recing.llm.timeout-seconds=60` property. Applied as both connect timeout and request (read) timeout on the Java HTTP client. No separate properties.
+- **Decision:** Single `recing.llm.timeout-seconds=180` property. Applied as both connect timeout and request (read) timeout on the Java HTTP client. No separate properties.
 
 ## 15. LLM_FAILED Error Code
 - **Decision:** Only for truly broken responses (empty content, unexpected shape). When schema validates with `status: "unusable"`, return it as a normal result — not an exception. Controller shows "No recipe found on this page."

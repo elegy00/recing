@@ -7,7 +7,6 @@ import com.networknt.schema.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Set;
@@ -60,26 +59,32 @@ public class RecipeExtractionService {
         JsonNode schemaJson = loadSchema();
         JsonNode requestBody = LlamaClient.buildRequest(props.model(), systemPrompt, userPrompt, schemaJson);
 
-        // Step 3: Send with retry loop (grill-me decision #8)
-        String responseBody = null;
-        int httpStatus = 0;
-        boolean success = false;
+        // Step 3: Send and parse with retry loop (grill-me decision #8)
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             long attemptStart = System.currentTimeMillis();
             try {
                 log.debug("LLM request attempt {} to {}", attempt, props.endpoint());
-                responseBody = client.sendChatCompletion(requestBody);
-                httpStatus = 200;
-                success = true;
+                String responseBody = client.sendChatCompletion(requestBody);
                 long attemptDuration = System.currentTimeMillis() - attemptStart;
                 log.info("LLM response received on attempt {} ({}ms)", attempt, attemptDuration);
+                log.warn("Response body {}", responseBody);
+
+                // Step 4: Parse response and extract content. This is inside the retry loop so
+                // malformed JSON/model text like "result.json" gets exactly one retry.
+                long totalDuration = System.currentTimeMillis() - totalStart;
+                return parseResponse(
+                    responseBody,
+                    url,
+                    totalDuration,
+                    reduced.reducedLength(),
+                    reduced.truncated()
+                );
             } catch (java.net.http.HttpTimeoutException e) {
                 log.warn("LLM request timed out (attempt {}/{})", attempt, MAX_ATTEMPTS);
                 if (attempt < MAX_ATTEMPTS) continue;
                 throw new LlmExtractionException(LlmErrorCode.LLM_TIMEOUT);
             } catch (java.io.IOException e) {
                 String msg = e.getMessage();
-                boolean retryable = false;
 
                 // Connection refused → LLM not running
                 if (msg != null && (msg.contains("Connection refused") || msg.contains("connect") || msg.contains("refused"))) {
@@ -87,51 +92,34 @@ public class RecipeExtractionService {
                     throw new LlmExtractionException(LlmErrorCode.LLM_UNAVAILABLE);
                 }
 
-                // HTTP 5xx is retryable (grill-me #8)
-                if (msg != null && msg.contains("HTTP 5")) {
-                    log.warn("LLM HTTP 5xx on attempt {}: {}", attempt, truncate(msg, 200));
-                    retryable = true;
-                }
-
-                // Malformed JSON response is retryable
-                if (msg != null && msg.contains("Bad response") || (responseBody != null && !isValidJsonResponse(responseBody))) {
-                    log.warn("Malformed LLM response on attempt {}: {}", attempt, truncate(msg != null ? msg : responseBody, 200));
-                    retryable = true;
-                }
-
+                // HTTP 5xx is retryable (grill-me #8); 4xx is not.
+                boolean retryable = msg != null && msg.contains("HTTP 5");
                 if (retryable && attempt < MAX_ATTEMPTS) {
-                    try { Thread.sleep(RETRY_DELAY.toMillis()); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                    log.warn("LLM HTTP 5xx on attempt {}: {}", attempt, truncate(msg, 200));
+                    sleepBeforeRetry();
                     continue;
                 }
 
                 throw new LlmExtractionException(LlmErrorCode.LLM_HTTP_ERROR, msg != null ? msg : "Unknown IO error");
+            } catch (LlmExtractionException e) {
+                // Malformed JSON / unexpected response shape is retryable once.
+                if (e.getCode() == LlmErrorCode.LLM_BAD_RESPONSE && attempt < MAX_ATTEMPTS) {
+                    log.warn("Bad LLM response on attempt {}/{}; retrying: {}", attempt, MAX_ATTEMPTS, truncate(e.getMessage(), 200));
+                    sleepBeforeRetry();
+                    continue;
+                }
+                throw e;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new LlmExtractionException(LlmErrorCode.LLM_FAILED, "Request interrupted");
             }
         }
 
-        if (!success || responseBody == null) {
-            throw new LlmExtractionException(LlmErrorCode.LLM_FAILED);
-        }
-
-        // Step 4: Parse response and extract content
-        long totalDuration = System.currentTimeMillis() - totalStart;
-        return parseResponse(responseBody, url, totalDuration);
-    }
-
-    /** Validates that the response body is a well-formed OpenAI-compatible chat completion. */
-    private boolean isValidJsonResponse(String body) {
-        try {
-            JsonNode root = MAPPER.readTree(body);
-            return root.has("choices") && !root.get("choices").isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
+        throw new LlmExtractionException(LlmErrorCode.LLM_FAILED);
     }
 
     /** Parses LLM response into RecipeExtraction with metadata. */
-    private LlmExtractionResult parseResponse(String responseBody, String url, long durationMs) {
+    private LlmExtractionResult parseResponse(String responseBody, String url, long durationMs, int requestContentChars, boolean truncatedInput) {
         try {
             JsonNode root = MAPPER.readTree(responseBody);
 
@@ -151,6 +139,7 @@ public class RecipeExtractionService {
             }
 
             String content = choices.get(0).path("message").path("content").asText(null);
+            log.info("LLM assistant content: {}", content);
             if (content == null || content.isBlank()) {
                 throw new LlmExtractionException(LlmErrorCode.LLM_FAILED, "Empty assistant content from model");
             }
@@ -177,8 +166,8 @@ public class RecipeExtractionService {
                 durationMs,
                 RecipeExtractionPrompt.PROMPT_VERSION,
                 RecipeExtractionPrompt.SCHEMA_VERSION,
-                null, // requestContentChars — tracked separately if needed
-                false, // truncatedInput — tracked from reducer result
+                requestContentChars,
+                truncatedInput,
                 true,  // parsedAsExpected
                 200,   // httpStatusCode (we only get here on success)
                 null,  // errorCode (only set on exception)
@@ -231,10 +220,22 @@ public class RecipeExtractionService {
             Set<ValidationMessage> messages = schema.validate(extractionNode);
             if (!messages.isEmpty()) {
                 log.warn("Schema validation errors: {}", messages);
-                // For MVP, log but don't fail — the extraction records themselves carry status/unusableReason
+                throw new LlmExtractionException(LlmErrorCode.LLM_SCHEMA_MISMATCH, messages.toString());
             }
+        } catch (LlmExtractionException e) {
+            throw e;
         } catch (Exception e) {
-            log.warn("Schema validation failed (non-fatal): {}", truncate(e.getMessage(), 200));
+            log.warn("Schema validation failed: {}", truncate(e.getMessage(), 200));
+            throw new LlmExtractionException(LlmErrorCode.LLM_SCHEMA_MISMATCH, "Schema validation failed");
+        }
+    }
+
+    private static void sleepBeforeRetry() {
+        try {
+            Thread.sleep(RETRY_DELAY.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new LlmExtractionException(LlmErrorCode.LLM_FAILED, "Retry sleep interrupted");
         }
     }
 
