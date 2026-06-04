@@ -1,8 +1,6 @@
 # Recing
-The recing application is set up from three parts in the architecture, or rather 4:
+
+The recing application has two MVP parts:
+
 * A local llama.cpp instance that can run models
-* A spring web application that takes on an URL of a recipe, pulls it down, sends it with context/instructions to the local llm and displays the result
-
-
-## Messaging
-Local redpanda setup with persisted message bus, using kafka as protocol
+* A Spring web application that takes in a recipe URL, fetches the page, sends it with context/instructions to the local LLM, and displays the result

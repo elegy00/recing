@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<body>
+<h1>Recing</h1>
+<form method="post" action="/recipes">
+    <label for="url">Recipe URL</label>
+    <input id="url" name="url" type="url" required />
+    <button type="submit">Submit</button>
+</form>
+
+<p th:if="${submittedUrl}">
+    Submitted: <span th:text="${submittedUrl}"></span>
+</p>
+</body>
+</html>
