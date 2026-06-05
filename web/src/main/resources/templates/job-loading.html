@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Recing — Processing</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+        a.back { display: inline-block; margin-top: 1.5rem; color: #2563eb; text-decoration: none; }
+        a.back:hover { text-decoration: underline; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .thinking { margin: 2rem auto; font-size: 1.25rem; color: #6b7280; }
+    </style>
+</head>
+<body>
+    <h1 th:text="${jobStatus == 'COMPLETED'} ? 'Recipe Ready!' : 'Processing Recipe'"></h1>
+    <p>Pulling content from <a th:href="${submittedUrl}" th:text="${submittedUrl}"></a></p>
+
+    <!-- Thinking animation (JS-driven, no reload) -->
+    <div class="thinking" id="thinking">thinking</div>
+
+    <a class="back" href="/">&larr; Submit another URL</a>
+
+    <script th:inline="javascript">
+        (() => {
+            const jobId = /*[[${jobId}]]*/ 'unknown';
+            const thinkingEl = document.getElementById('thinking');
+            const MAX_AGE_MS = 10 * 60 * 1000;
+            const POLL_INTERVAL = 2000;
+            const DOT_INTERVAL = 1500;
+            const startTime = Date.now();
+
+            // --- Dot animation: "thinking ." -> "thinking .." -> "thinking ..." -> "thinking" ---
+            let dotPhase = 0;
+            setInterval(() => {
+                const dots = '.'.repeat(dotPhase);
+                thinkingEl.textContent = 'thinking' + (dots ? ' ' + dots : '');
+                dotPhase = (dotPhase + 1) % 4;
+            }, DOT_INTERVAL);
+
+            // --- Poll for job completion (single chain, no overlap) ---
+            let stopped = false;
+
+            async function poll() {
+                if (stopped) return;
+                if (Date.now() - startTime > MAX_AGE_MS) {
+                    thinkingEl.textContent = 'Timed out \u2014 please try again.';
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/recipes/' + jobId, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    // Server will respond with JSON status when Accept: application/json
+                    // Fallback: parse HTML if JSON not available
+                    const ct = res.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        const data = await res.json();
+                        if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+                            stopped = true;
+                            window.location.replace('/recipes/' + jobId);
+                            return;
+                        }
+                    } else {
+                        const html = await res.text();
+                        if (!html.includes('id="thinking"')) {
+                            stopped = true;
+                            window.location.replace('/recipes/' + jobId);
+                            return;
+                        }
+                    }
+                } catch (_) {
+                    // network error — just retry on next tick
+                }
+
+                setTimeout(poll, POLL_INTERVAL);
+            }
+
+            setTimeout(poll, POLL_INTERVAL);
+        })();
+    </script>
+</body>
+</html>

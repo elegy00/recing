@@ -1,6 +1,6 @@
-# Recing
+# Recipe Ingestor
 
-Recipe URL extractor powered by a local LLM (llama.cpp).
+Ingests recipes from URLs using a local LLM (llama.cpp).
 
 ## Quick Start
 
@@ -11,11 +11,11 @@ podman run -d \
   --name recing-mongodb \
   -p 27017:27017 \
   -v mongodb-data:/var/lib/mongodb/data \
-  -e MONGO_INITDB_DATABASE=recing \
+  -e MONGO_INITDB_DATABASE=recipe-ingestor \
   mongo:7.0
 ```
 
-This starts a MongoDB 7.0 container on `localhost:27017` with persistent volume storage (`mongodb-data`). The database name is `recing`.
+This starts a MongoDB 7.0 container on `localhost:27017` with persistent volume storage (`mongodb-data`). The database name is `recipe-ingestor`.
 
 To stop and clean up:
 
@@ -58,7 +58,6 @@ Open [http://localhost:8080](http://localhost:8080) and submit a recipe URL.
 ```
 recing/
 ├── web/                          # Spring Boot application (Java 17, Maven)
-│   ├── src/main/java/dev/recing/web/
 │   │   ├── RecipeController.java       # POST /recipes → async job
 │   │   ├── fetch/                      # MVP1: URL fetching
 │   │   └── llm/                        # MVP2: LLM extraction pipeline
