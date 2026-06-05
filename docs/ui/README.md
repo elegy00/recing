@@ -2,6 +2,19 @@
 
 This directory contains comprehensive documentation of the application's user interface structure, layout, and design.
 
+## Design Values Reference
+
+All spacing, breakpoints, sizing, and layout values defined in these wireframes align with [Tailwind CSS defaults](https://tailwindcss.com/docs/theme) as a sane baseline. Tailwind CSS is **not** used in this project — the values are simply adopted from it as our reference standard.
+
+| Wireframe Token | Tailwind Equivalent |
+|-----------------|--------------------|
+| Breakpoints: 480px, 1024px | `sm`, `md` (mobile-first) |
+| Max widths: 640, 768, 1024, 1200 | `max-w-sm/md/lg/xl/2xl` |
+| Spacing scale: 4, 8, 16, 24, 32 | `px-1 / px-2 / px-4 / px-6 / px-8` |
+| Component heights: 40, 48, 56 | `h-10 / h-12 / h-14` |
+
+When in doubt about a value, check Tailwind's default theme config first.
+
 ## Overview
 
 ```

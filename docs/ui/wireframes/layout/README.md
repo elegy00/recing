@@ -28,21 +28,21 @@ Structural elements and chrome shared across all pages. Page-specific content li
 
 ## Header Variations by Breakpoint
 
-### Mobile (≤480px) — hamburger nav
+### Mobile (< sm / 640px) — hamburger nav
 ```
 ┌──────────────┐
-│ [☰] Recing   │ ← 56px height, logo left, menu icon right
+│ [☰] Recing   │ ← h-14 (56px), logo left, menu icon right
 └──────────────┘
 ```
 
-### Tablet (481–1024px) — link-based nav
+### Tablet (≥ sm / 640px – < lg / 1024px) — link-based nav
 ```
 ┌─────────────────────────────┐
 │ Recing     [About]          │ ← links appear, still compact
 └─────────────────────────────┘
 ```
 
-### Desktop (≥1025px) — full nav bar
+### Desktop (≥ lg / 1024px) — full nav bar
 ```
 ┌───────────────────────────────────────────────────────┐
 │ Recing   Submit    History    About           [⚙]     │ ← active page highlighted
@@ -59,11 +59,11 @@ Structural elements and chrome shared across all pages. Page-specific content li
 
 ## Content Area Behavior
 
-| Breakpoint | Max Width | Centered? | Padding |
-|------------|-----------|-----------|---------|
-| Mobile     | none      | No        | `sm` (8px) all sides |
-| Tablet     | 768       | Yes       | `md` (16px) all sides |
-| Desktop    | 1200      | Yes       | `lg` (24px) top/bottom, `xl` (32px) left/right |
+| Breakpoint | Max Width | Centered? | Padding        |
+|------------|-----------|-----------|----------------|
+| Mobile     | none      | No        | p-2 (8px)      |
+| Tablet     | max-w-md  | Yes       | p-4 (16px)     |
+| Desktop    | max-w-xl  | Yes       | px-8 py-6      |
 
 ## Footer
 
