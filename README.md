@@ -4,10 +4,15 @@ Recipe URL extractor powered by a local LLM (llama.cpp).
 
 ## Quick Start
 
-### 1. Start MongoDB with Docker Compose
+### 1. Start MongoDB with Podman
 
 ```bash
-docker compose up -d
+podman run -d \
+  --name recing-mongodb \
+  -p 27017:27017 \
+  -v mongodb-data:/var/lib/mongodb/data \
+  -e MONGO_INITDB_DATABASE=recing \
+  mongo:7.0
 ```
 
 This starts a MongoDB 7.0 container on `localhost:27017` with persistent volume storage (`mongodb-data`). The database name is `recing`.
@@ -16,10 +21,10 @@ To stop and clean up:
 
 ```bash
 # Stop the container (keeps data)
-docker compose down
+podman stop recing-mongodb && podman rm recing-mongodb
 
-# Remove container and volume (deletes all stored jobs)
-docker compose down -v
+# Remove volume (deletes all stored jobs)
+podman volume rm mongodb-data
 ```
 
 ### 2. Start llama.cpp
@@ -60,15 +65,14 @@ recing/
 │   └── src/main/resources/
 │       ├── application.properties
 │       └── templates/                  # Thymeleaf views (index, result)
-├── docs/requirements/advanced/         # Async processing & refinement specs
-└── docker-compose.yml                  # MongoDB container for local dev
+└── docs/requirements/advanced/         # Async processing & refinement specs
 ```
 
 ## Requirements
 
 - Java 17+
 - Maven 3.8+
-- Docker + Docker Compose (for MongoDB)
+- Podman (for MongoDB)
 - llama.cpp server running locally
 
 ## Endpoints

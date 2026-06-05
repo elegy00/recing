@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.util.Set;
 /**
  * Orchestrates the LLM extraction pipeline: content reduction → request building → HTTP call → parsing → validation.
  */
+@Service
 public class RecipeExtractionService {
 
     private static final Logger log = LoggerFactory.getLogger(RecipeExtractionService.class);
