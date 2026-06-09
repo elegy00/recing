@@ -8,192 +8,134 @@ Initialize the monorepo structure, shared tooling config, and package scaffolds 
 ## Step 1 — Root `package.json` + pnpm workspaces
 
 ```bash
-cd /path/to/recing
-pnpm init
+cd /path/to/recing && pnpm init
 ```
 
-**Root `package.json`:**
+Create these files at project root:
 
+**`package.json`:**
 ```json
-{
-  "name": "recing",
-  "private": true,
-  "type": "module",
+{ "name": "recing", "private": true, "type": "module",
   "workspaces": ["packages/*"],
-  "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint"
-  },
-  "devDependencies": {}
-}
+  "scripts": { "build": "pnpm -r build", "test": "pnpm -r test", "lint": "pnpm -r lint" },
+  "devDependencies": { "@types/node": "^25.9.2", "typescript": "^6.0.3" } }
 ```
 
 **`pnpm-workspace.yaml`:**
-
 ```yaml
-packages:
-  - "packages/*"
+packages: ["packages/*"]
 ```
 
 ---
 
 ## Step 2 — Shared `tsconfig.base.json` (root)
 
-This base config is extended by every package. It enforces consistent TypeScript settings across the monorepo.
+Extended by every package. Enforces consistent TS settings across the monorepo.
 
-**Root `tsconfig.base.json`:**
+> **Note:** No `allowImportingTsExtensions` — it conflicts with emit. Vite resolves modules for web; schema/ingestion use bundler-style imports without `.ts` extensions in production.
 
 ```json
-{
-  "compilerOptions": {
-    "target": "es2023",
-    "lib": ["ES2023"],
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "strict": true,
-    "skipLibCheck": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
-  }
-}
+{ "compilerOptions": {
+    "target": "es2023", "lib": ["ES2023"], "module": "esnext",
+    "moduleResolution": "bundler", "verbatimModuleSyntax": true,
+    "moduleDetection": "force", "strict": true, "skipLibCheck": true,
+    "noUnusedLocals": true, "noUnusedParameters": true,
+    "erasableSyntaxOnly": true, "noFallthroughCasesInSwitch": true,
+    "declaration": true, "declarationMap": true, "sourceMap": true } }
 ```
 
 ---
 
 ## Step 3 — Create package scaffolds
 
-### `packages/schema` (`@recing/schema`)
-
+### `@recing/schema`
 ```bash
-mkdir -p packages/schema/src
+mkdir -p packages/schema/src && echo 'export {};' > packages/schema/src/index.ts
 ```
 
 **`packages/schema/package.json`:**
-
 ```json
-{
-  "name": "@recing/schema",
-  "version": "0.0.0",
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts"
-}
+{ "name": "@recing/schema", "version": "0.0.0", "type": "module",
+  "main": "./src/index.ts", "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./src/index.ts", "types": "./dist/index.d.ts" } },
+  "scripts": { "build": "tsc --project tsconfig.json" } }
 ```
 
 **`packages/schema/tsconfig.json`:**
-
 ```json
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "include": ["src"]
-}
+{ "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "./dist", "rootDir": "./src" },
+  "include": ["src"] }
 ```
 
-### `packages/ingestion` (`@recing/ingestion`)
-
+### `@recing/ingestion`
 ```bash
-mkdir -p packages/ingestion/src
+mkdir -p packages/ingestion/src && echo 'export {};' > packages/ingestion/src/index.ts
 ```
 
 **`packages/ingestion/package.json`:**
-
 ```json
-{
-  "name": "@recing/ingestion",
-  "version": "0.0.0",
-  "type": "module",
-  "bin": {
-    "recing-ingest": "./src/cli.ts"
-  },
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "dependencies": {
-    "@recing/schema": "workspace:*"
-  }
-}
+{ "name": "@recing/ingestion", "version": "0.0.0", "type": "module",
+  "bin": { "recing-ingest": "./src/cli.ts" },
+  "main": "./src/index.ts", "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./src/index.ts", "types": "./dist/index.d.ts" } },
+  "scripts": { "build": "tsc --project tsconfig.json" },
+  "dependencies": { "@recing/schema": "workspace:*" } }
 ```
 
-**`packages/ingestion/tsconfig.json`:**
+**`packages/ingestion/tsconfig.json`:** same structure as schema (extends base, outDir/rootDir).
 
-```json
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "include": ["src"]
-}
-```
-
-### `packages/web` (`@recing/web`)
-
+### `@recing/web` — Vite + React
 ```bash
 mkdir -p packages/web/src/{routes,components,lib}
-npm create vite@latest . -- --template react-ts
-# (answer: no to overwrite existing files when prompted)
+cd packages/web && npm create vite@latest . -- --template react-ts
+# Answer: no to overwrite existing files when prompted
 ```
 
-**`packages/web/package.json`:** *(extends the Vite template + adds workspace deps)*
-
+Then fix the generated `package.json`:
 ```json
-{
-  "name": "@recing/web",
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {},
-  "devDependencies": {}
-}
+{ "name": "@recing/web", "version": "0.0.0", "type": "module",
+  "scripts": { "dev": "vite", "build": "tsc -b && vite build", "preview": "vite preview" },
+  "dependencies": { "react": "^19.2.7", "react-dom": "^19.2.7" },
+  "devDependencies": { "@types/react": "^19.2.17", "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2", "typescript": "^6.0.3", "vite": "^8.0.16" } }
 ```
+
+**`packages/web/tsconfig.app.json`** — add `"jsx": "react-jsx"` to compilerOptions.
 
 ---
 
-## Step 4 — Install dependencies
+## Step 4 — Install runtime deps & verify
 
 ```bash
-pnpm install
+cd packages/schema && pnpm add zod
+cd /path/to/recing && pnpm install          # resolve workspace symlinks
+pnpm run build                               # all 3 packages compile + web bundles
 ```
 
-At this point `pnpm install` resolves workspace symlinks for `@recing/schema` → `packages/schema`.
+### Validation checklist
+- [ ] `pnpm install` — no errors, symlink `@recing/schema` → `packages/schema` in ingestion
+- [ ] `pnpm run build` — schema compiles, ingestion compiles, web builds with Vite
+- [ ] `tsc --project packages/web/tsconfig.app.json --noEmit` — JSX renders clean
 
----
-
-## Resulting structure
+### Resulting structure
 
 ```
 recing/
 ├── tsconfig.base.json          # shared TS config (extends from each package)
-├── package.json                # root: workspaces, scripts
+├── package.json                # root: workspaces, scripts, tooling deps
 ├── pnpm-workspace.yaml         # workspace definition
 └── packages/
     ├── schema/                 # @recing/schema — shared types + Zod validation
-    │   └── src/index.ts        # empty stub, Phase 0 fills this in
+    │   └── src/index.ts        # stub; Phase 0 fills this in
     ├── ingestion/              # @recing/ingestion — CLI worker
-    │   └── src/cli.ts          # empty stub, Phase 7 fills this in
+    │   └── src/index.ts        # stub; Phase 7 fills this in
     └── web/                    # @recing/web — API + UI on fly.io
-        └── vite.config.ts      # Vite config from template
+        ├── src/App.tsx         # minimal React entry
+        └── vite.config.ts      # Vite config with React plugin
 ```
-
----
 
 ## Dependencies
 
-None — pure scaffolding.
+Tooling: `typescript`, `@types/node` (root devDeps), `zod` (@recing/schema runtime).
+These are consumed by later phases — init only provisions scaffolding.

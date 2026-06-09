@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment files (keep .env.example if you have one)
+.env
+.env.local
+.env.*.local
+
+# MongoDB
+mongodb-data/
+
+# Temporary build artifacts
+packages/*/node_modules/.tmp/

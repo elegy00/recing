@@ -1,0 +1,17 @@
+{
+  "name": "recing",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
+  }
+}
