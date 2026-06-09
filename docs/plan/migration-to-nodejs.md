@@ -73,8 +73,8 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 
 | Phase | Status | Docs |
 |-------|--------|------|
-| Init. Project Setup | ⬜ Not started | [details](./migration-to-nodejs/phase-init-project-setup.md) |
-| 0. Foundation (schema) | ⬜ Not started | [details](./migration-to-nodejs/phase-0-schema.md) |
+| Init. Project Setup | ✅ Done | [details](./migration-to-nodejs/phase-init-project-setup.md) |
+| 0. Foundation (schema) | ✅ Done | [details](./migration-to-nodejs/phase-0-schema.md) |
 | 1. Content Reducer | ⬜ Not started | [details](./migration-to-nodejs/phase-1-content-reducer.md) |
 | 2. URL Fetcher | ⬜ Not started | [details](./migration-to-nodejs/phase-2-url-fetcher.md) |
 | 3. LLM Client | ⬜ Not started | [details](./migration-to-nodejs/phase-3-llm-client.md) |
@@ -93,8 +93,8 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 ## Execution Order Summary
 
 ```
-Init. Project Setup   ← Monorepo scaffolding (pnpm workspaces, tsconfig base)
-Phase 0: schema       ← Shared types & validation (foundation)
+✅ Init. Project Setup   ← pnpm workspaces + shared TS config + 3 package scaffolds
+✅ Phase 0: schema     ← Zod schemas for RecipeExtraction/JobSubmission/LlmResult, error codes, 53 tests
 Phase 1: ingestion/content-reducer   ← Port content reduction logic + tests
 Phase 2: ingestion/url-fetcher       ← Port URL fetching + SSRF protection + tests
 Phase 3: ingestion/llm-client        ← Port LLM client + extraction pipeline + tests
