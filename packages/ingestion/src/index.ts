@@ -1,2 +1,6 @@
-// @recing/ingestion — CLI worker (Phase 7 fills this in)
-export {};
+/**
+ * @recing/ingestion — Content reduction for LLM prompting.
+ */
+
+export type { ReducedContent } from "./content-reducer.js";
+export { reduce, extractTitle } from "./content-reducer.js";
