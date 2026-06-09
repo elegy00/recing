@@ -77,7 +77,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 | 0. Foundation (schema) | ✅ Done | [details](./migration-to-nodejs/phase-0-schema.md) |
 | 1. Content Reducer | ✅ Done | [details](./migration-to-nodejs/phase-1-content-reducer.md) |
 | 2. URL Fetcher | ✅ Done | [details](./migration-to-nodejs/phase-2-url-fetcher.md) |
-| 3. LLM Client | ⬜ Not started | [details](./migration-to-nodejs/phase-3-llm-client.md) |
+| 3. LLM Client | ✅ Done | [details](./migration-to-nodejs/phase-3-llm-client.md) |
 | 4. Web API | ⬜ Not started | [details](./migration-to-nodejs/phase-4-web-api.md) |
 | 5. Frontend | ⬜ Not started | [details](./migration-to-nodejs/phase-5-frontend.md) |
 | 6. Authentication | ⬜ Not started | [details](./migration-to-nodejs/phase-6-auth.md) |

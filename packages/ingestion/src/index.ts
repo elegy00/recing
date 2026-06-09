@@ -2,9 +2,35 @@
  * @recing/ingestion — URL fetching, content reduction, and SSRF protection.
  */
 
+// LLM extraction pipeline
+export type {
+  ExtractionConfig,
+  ExtractionInput,
+  LlmExtractionOutput,
+} from "./llm-extraction.js";
+export { extractRecipe, LlmExtractionError } from "./llm-extraction.js";
+
+// LLM client (thin fetch wrapper)
+export type {
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+  LlamaClientConfig,
+} from "./llm-client.js";
+export { sendChatCompletion, buildRequest, LlmClientError } from "./llm-client.js";
+
+// Prompt templates
+export {
+  PROMPT_VERSION,
+  SCHEMA_VERSION,
+  RECIPE_JSONLD_PATTERN,
+  buildSystemPrompt,
+  buildUserPrompt,
+} from "./llm-prompt.js";
+
 // Content reducer
 export type { ReducedContent } from "./content-reducer.js";
 export { reduce, extractTitle } from "./content-reducer.js";
+
 
 // URL fetcher
 export type { RecipeFetchResult } from "./recipe-fetch-result.js";
