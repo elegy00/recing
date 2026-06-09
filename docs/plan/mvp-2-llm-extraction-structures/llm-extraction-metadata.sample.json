@@ -1,0 +1,11 @@
+{
+  "modelEndpoint": "http://localhost:8080/v1/chat/completions",
+  "model": "qwen3.6",
+  "durationMs": 1842,
+  "promptVersion": "recipe_extraction_prompt.v1",
+  "schemaVersion": "recipe_extraction.v1",
+  "requestContentChars": 24831,
+  "truncatedInput": false,
+  "parsedAsExpected": true,
+  "errorCode": null
+}

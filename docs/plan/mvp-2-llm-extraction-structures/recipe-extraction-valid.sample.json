@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "recipe_extraction.v1",
+  "status": "extracted",
+  "sourceUrl": "https://example.com/recipes/lemon-pasta",
+  "recipeName": "Lemon Pasta",
+  "yield": "4 servings",
+  "prepTime": "10 minutes",
+  "cookTime": "15 minutes",
+  "totalTime": "25 minutes",
+  "ingredients": [
+    {
+      "quantity": "12",
+      "unit": "ounces",
+      "name": "spaghetti",
+      "note": null,
+      "originalText": "12 ounces spaghetti"
+    },
+    {
+      "quantity": "2",
+      "unit": "tablespoons",
+      "name": "lemon juice",
+      "note": "freshly squeezed",
+      "originalText": "2 tablespoons freshly squeezed lemon juice"
+    }
+  ],
+  "instructions": [
+    {
+      "stepNumber": 1,
+      "text": "Cook the spaghetti in salted boiling water until al dente.",
+      "timer": "10 minutes"
+    },
+    {
+      "stepNumber": 2,
+      "text": "Toss the pasta with lemon juice and serve immediately.",
+      "timer": null
+    }
+  ],
+  "notes": ["Use more lemon juice to taste."],
+  "unusableReason": null
+}

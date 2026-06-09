@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recing.dev/schemas/recipe-extraction.v1.schema.json",
+  "title": "RecipeExtractionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status"],
+  "properties": {
+    "schemaVersion": { "const": "recipe_extraction.v1" },
+    "status": { "type": "string", "enum": ["extracted", "unusable"] },
+    "recipeName": { "type": ["string", "null"] },
+    "description": { "type": ["string", "null"] },
+    "prepTime": { "type": ["string", "null"] },
+    "cookTime": { "type": ["string", "null"] },
+    "totalTime": { "type": ["string", "null"] },
+    "servings": { "type": ["string", "null"] },
+    "cuisine": { "type": ["string", "null"] },
+    "category": { "type": ["string", "null"] },
+    "keywords": { "type": ["string", "null"] },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "quantity": { "type": ["string", "null"] },
+          "unit": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "note": { "type": ["string", "null"] },
+          "originalText": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "instructions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepNumber", "text"],
+        "properties": {
+          "stepNumber": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "unusableReason": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "extracted" } } },
+      "then": {
+        "required": ["recipeName"],
+        "properties": {
+          "recipeName": { "type": "string", "minLength": 1 },
+          "ingredients": { "minItems": 1 },
+          "instructions": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "unusable" } } },
+      "then": {
+        "required": ["unusableReason"],
+        "properties": {
+          "recipeName": { "type": "null" },
+          "ingredients": { "maxItems": 0 },
+          "instructions": { "maxItems": 0 },
+          "unusableReason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ]
+}

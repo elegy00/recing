@@ -1,0 +1,18 @@
+/* ── Global styles for Recing Hi-Fi v1 mockup ───────── */
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #e8e4db; /* warm canvas bg matching design tokens */
+}
+
+/* Hide all tldraw UI chrome — we're showing a static mockup */
+.tl-contextual-bubble,
+.tl-toolbar,
+.tl-ui .tl-panel,
+.tl-zoom,
+.tl-pointer-layer {
+  display: none !important;
+}

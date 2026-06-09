@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Recing — Submit a Recipe URL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-serif: 'EB Garamond', Georgia, serif;
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+            --color-text-primary: #1a1a1a;
+            --color-text-secondary: #6b7280;
+            --color-border: #9ca3af;
+            --color-accent: #D9665B;   /* terracotta */
+            --color-bg-canvas: #f5f4f0; /* warm neutral */
+            --color-white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg-canvas);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header bar ─────────────────────────────── */
+        .header {
+            background: var(--color-white);
+            border-bottom: 1px solid var(--color-border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header__logo {
+            font-family: var(--font-serif);
+            font-size: 1.375rem;
+            color: var(--color-text-primary);
+            text-decoration: none;
+        }
+
+        .header__nav { display: flex; align-items: center; gap: 2rem; }
+
+        .header__link {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+        }
+
+        .header__nav-item--active {
+            position: relative;
+            color: var(--color-text-primary);
+            font-weight: 500;
+        }
+
+        .header__nav-item--active::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            bottom: -4px;
+            height: 3px;
+            background: var(--color-accent);
+            border-radius: 2px;
+        }
+
+        /* ── Main content ───────────────────────────── */
+        .main {
+            flex: 1;
+            max-width: 780px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 3rem 1.5rem 2rem;
+        }
+
+        /* ── Page title ─────────────────────────────── */
+        .page-title {
+            font-family: var(--font-serif);
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            margin-bottom: 1rem;
+        }
+
+        /* ── Description ────────────────────────────── */
+        .page-desc {
+            color: var(--color-text-secondary);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            max-width: 620px;
+            margin-bottom: 1.5rem;
+        }
+
+        /* ── Divider ────────────────────────────────── */
+        .divider {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 1.25rem 0;
+        }
+
+        /* ── Form row (input + button) ──────────────── */
+        .form-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            position: relative;
+        }
+
+        .url-input-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            border: 1.5px solid var(--color-border);
+            border-radius: 6px;
+            background: var(--color-white);
+            padding-left: 48px; /* space for icon */
+            height: 3.25rem;      /* ~52px matching hi-fi */
+        }
+
+        .url-input-wrapper__icon {
+            position: absolute;
+            left: 16px;
+            width: 28px;
+            height: 28px;
+            background: var(--color-accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .url-input-wrapper__icon-inner {
+            width: 16px;
+            height: 16px;
+            background: var(--color-white);
+            border-radius: 50%;
+        }
+
+        .url-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            background: transparent;
+            height: 100%;
+        }
+
+        .url-input::placeholder {
+            color: var(--color-text-secondary);
+            font-style: italic;
+        }
+
+        .submit-btn {
+            margin-left: 0.5rem;
+            background: var(--color-accent);
+            color: var(--color-white);
+            border: none;
+            border-radius: 9999px; /* full rounded */
+            padding: 0 1.25rem;
+            height: 3rem;          /* 48px matching hi-fi */
+            min-width: 140px;
+            font-family: var(--font-sans);
+            font-size: 0.9375rem;
+            cursor: pointer;
+            transition: opacity 150ms ease-in-out;
+        }
+
+        .submit-btn:hover { opacity: 0.88; }
+        .submit-btn:active { opacity: 0.76; }
+
+        /* ── Status hint ────────────────────────────── */
+        .status-hint {
+            margin-top: 1rem;
+            font-size: 0.8125rem;
+            color: var(--color-text-secondary);
+            font-style: italic;
+            max-width: 640px;
+        }
+
+        /* ── Error / success banners ────────────────── */
+        .banner {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .banner--error {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        .banner--success {
+            background: #d1fae5;
+            border: 1px solid #6ee7b7;
+            color: #065f46;
+        }
+
+        /* ── Results table (from previous fetch) ──── */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            text-align: left;
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        /* ── Footer ─────────────────────────────────── */
+        .footer {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            padding: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────── -->
+<header class="header">
+    <a href="/" class="header__logo">Recing</a>
+    <nav class="header__nav">
+        <span class="header__link header__nav-item--active">Submit</span>
+        <a href="/recipes" class="header__link">Recipes</a>
+        <a href="#about" class="header__link">About</a>
+    </nav>
+</header>
+
+<!-- ── Main content ────────────────────────────────── -->
+<main class="main">
+    <h1 class="page-title">SUBMIT A RECIPE URL</h1>
+    <p class="page-desc">Paste the URL of any recipe and we'll extract all details using our local AI model.</p>
+
+    <hr class="divider">
+
+    <!-- Submission form -->
+    <form method="post" action="/recipes" class="form-row">
+        <div class="url-input-wrapper">
+            <span class="url-input-wrapper__icon">
+                <span class="url-input-wrapper__icon-inner"></span>
+            </span>
+            <input
+                id="url"
+                name="url"
+                type="url"
+                required
+                placeholder="https://example.com/chocolate-cake"
+                th:value="${submittedUrl}"
+                class="url-input"
+                autocomplete="off"
+            />
+        </div>
+        <button type="submit" class="submit-btn">Submit →</button>
+    </form>
+
+    <!-- Status hint (shown when no result yet) -->
+    <p class="status-hint" th:if="${submittedUrl == null || fetchStatus == null}">
+        Status: idle — enter a URL above to begin extraction
+    </p>
+
+    <!-- Error banner (fetch or LLM) -->
+    <div class="banner banner--error" th:if="${error != null}" th:text="${error}"></div>
+    <div class="banner banner--error" th:if="${llmError != null}" th:text="${llmError}"></div>
+
+    <!-- Success metadata (after fetch) -->
+    <p th:if="${submittedUrl != null && fetchStatus == 'success'}" class="banner banner--success">
+        Page fetched successfully.
+    </p>
+
+    <table class="results-table" th:if="${submittedUrl != null && fetchStatus == 'success'}">
+        <tr><th>Submitted URL</th><td th:text="${submittedUrl}"></td></tr>
+        <tr><th>Final URL</th><td th:text="${finalUrl}"></td></tr>
+        <tr><th>Status</th><td><span th:text="${httpStatus != null ? httpStatus + ' OK' : ''}"></span></td></tr>
+        <tr><th>Content Type</th><td th:text="${contentType}"></td></tr>
+        <tr><th>Size</th><td><span th:text="${byteCount != null ? byteCount + ' bytes' : ''}"></span></td></tr>
+    </table>
+
+    <!-- Previous submission without fetch result -->
+    <p class="status-hint" th:if="${submittedUrl != null && fetchStatus == null}">
+        Submitted: <span th:text="${submittedUrl}"></span>
+    </p>
+</main>
+
+<!-- ── Footer ──────────────────────────────────────── -->
+<footer class="footer">© 2026 Recing · Terms · Help</footer>
+
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-local-001",
+  "object": "chat.completion",
+  "created": 1780526400,
+  "model": "qwen3.6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"schemaVersion\":\"recipe_extraction.v1\",\"status\":\"extracted\",\"sourceUrl\":\"https://example.com/recipes/lemon-pasta\",\"recipeName\":\"Lemon Pasta\",\"yield\":null,\"prepTime\":null,\"cookTime\":null,\"totalTime\":null,\"ingredients\":[{\"quantity\":\"12\",\"unit\":\"ounces\",\"name\":\"spaghetti\",\"note\":null,\"originalText\":\"12 ounces spaghetti\"}],\"instructions\":[{\"stepNumber\":1,\"text\":\"Cook spaghetti.\",\"timer\":null}],\"notes\":[],\"unusableReason\":null}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 182,
+    "completion_tokens": 96,
+    "total_tokens": 278
+  }
+}

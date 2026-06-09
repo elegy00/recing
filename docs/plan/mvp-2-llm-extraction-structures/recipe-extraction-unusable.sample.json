@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "recipe_extraction.v1",
+  "status": "unusable",
+  "sourceUrl": "https://example.com/recipes/script-only",
+  "recipeName": null,
+  "yield": null,
+  "prepTime": null,
+  "cookTime": null,
+  "totalTime": null,
+  "ingredients": [],
+  "instructions": [],
+  "notes": [],
+  "unusableReason": "The fetched page content does not contain recipe ingredients or instructions."
+}
