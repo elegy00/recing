@@ -295,4 +295,134 @@ class RecipeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"));
     }
+
+    // --- GET /recipes — recipe list view ---
+
+    @Test
+    void recipeList_empty_returns_list_view_with_empty_model() throws Exception {
+        when(jobRepo.findAll()).thenReturn(java.util.List.of());
+
+        mockMvc.perform(get("/recipes").accept("text/html"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("recipe-list"))
+                .andExpect(model().attribute("recipes", java.util.Collections.emptyList()));
+    }
+
+    @Test
+    void recipeList_excludes_non_completed_jobs() throws Exception {
+        JobSubmission pending = new JobSubmission();
+        pending.setId("job-pending");
+        pending.setUrl("http://example.com/pending");
+        pending.setStatus(JobStatus.PENDING);
+
+        JobSubmission processing = new JobSubmission();
+        processing.setId("job-processing");
+        processing.setUrl("http://example.com/processing");
+        processing.setStatus(JobStatus.PROCESSING);
+
+        JobSubmission failed = new JobSubmission();
+        failed.setId("job-failed");
+        failed.setUrl("http://example.com/failed");
+        failed.setStatus(JobStatus.FAILED);
+        failed.setError("some error");
+
+        when(jobRepo.findAll()).thenReturn(java.util.List.of(pending, processing, failed));
+
+        mockMvc.perform(get("/recipes").accept("text/html"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("recipe-list"))
+                .andExpect(model().attribute("recipes", java.util.Collections.emptyList()));
+    }
+
+    @Test
+    void recipeList_excludes_unusable_results() throws Exception {
+        RecipeExtraction unusable = new RecipeExtraction(
+            "v1", "unusable", "Bad Page",
+            null, null, null, null, null, null, null, null,
+            java.util.List.of(), java.util.List.of(),
+            "not a recipe page"
+        );
+
+        JobSubmission job = new JobSubmission();
+        job.setId("job-done-unusable");
+        job.setUrl("http://example.com/bad-page");
+        job.setStatus(JobStatus.COMPLETED);
+        job.setResult(unusable);
+
+        when(jobRepo.findAll()).thenReturn(java.util.List.of(job));
+
+        mockMvc.perform(get("/recipes").accept("text/html"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("recipe-list"))
+                .andExpect(model().attribute("recipes", java.util.Collections.emptyList()));
+    }
+
+    @Test
+    void recipeList_excludes_jobs_with_null_result() throws Exception {
+        JobSubmission job = new JobSubmission();
+        job.setId("job-no-result");
+        job.setUrl("http://example.com/no-extraction");
+        job.setStatus(JobStatus.COMPLETED);
+        // result is null
+
+        when(jobRepo.findAll()).thenReturn(java.util.List.of(job));
+
+        mockMvc.perform(get("/recipes").accept("text/html"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("recipe-list"))
+                .andExpect(model().attribute("recipes", java.util.Collections.emptyList()));
+    }
+
+    @Test
+    void recipeList_includes_valid_completed_jobs() throws Exception {
+        RecipeExtraction extraction = new RecipeExtraction(
+            "v1", "extracted", "Pancakes",
+            null, null, null, null, null, null, null, null,
+            java.util.List.of(new RecipeIngredient("", "cup", "flour", "white", null)),
+            java.util.List.of(new RecipeInstruction(1, "Mix")),
+            null
+        );
+
+        JobSubmission validJob = new JobSubmission();
+        validJob.setId("job-valid");
+        validJob.setUrl("http://example.com/pancakes");
+        validJob.setStatus(JobStatus.COMPLETED);
+        validJob.setResult(extraction);
+
+        when(jobRepo.findAll()).thenReturn(java.util.List.of(validJob));
+
+        mockMvc.perform(get("/recipes").accept("text/html"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("recipe-list"))
+                .andExpect(model().attributeExists("recipes"));
+    }
+
+    @Test
+    void recipeList_mix_of_jobs_filters_correctly() throws Exception {
+        RecipeExtraction valid = new RecipeExtraction(
+            "v1", "extracted", "Pancakes",
+            null, null, null, null, null, null, null, null,
+            java.util.List.of(new RecipeIngredient("", "cup", "flour", "white", null)),
+            java.util.List.of(new RecipeInstruction(1, "Mix")),
+            null
+        );
+
+        JobSubmission completedJob = new JobSubmission();
+        completedJob.setId("job-done");
+        completedJob.setUrl("http://example.com/pancakes");
+        completedJob.setStatus(JobStatus.COMPLETED);
+        completedJob.setResult(valid);
+
+        JobSubmission failedJob = new JobSubmission();
+        failedJob.setId("job-fail");
+        failedJob.setUrl("http://example.com/bad");
+        failedJob.setStatus(JobStatus.FAILED);
+        failedJob.setError("oops");
+
+        when(jobRepo.findAll()).thenReturn(java.util.List.of(completedJob, failedJob));
+
+        mockMvc.perform(get("/recipes").accept("text/html"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("recipe-list"));
+    }
 }

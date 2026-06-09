@@ -42,9 +42,27 @@ public class RecipeController {
         this.llmProps = llmProps;
     }
 
+    // -----------------------------------------------------------------------
+    // GET / — home (submit form)
+    // -----------------------------------------------------------------------
     @GetMapping("/")
     public String index() {
         return "index";
+    }
+
+    // -----------------------------------------------------------------------
+    // GET /recipes — list all completed recipes (HTML)
+    // -----------------------------------------------------------------------
+    @GetMapping(value = "/recipes", produces = MediaType.TEXT_HTML_VALUE)
+    public String recipeList(Model model) {
+        var allJobs = jobRepo.findAll();
+        var validRecipes = allJobs.stream()
+                .filter(j -> j.getStatus() == JobStatus.COMPLETED
+                        && j.getResult() != null
+                        && j.getResult().isValid())
+                .toList();
+        model.addAttribute("recipes", validRecipes);
+        return "recipe-list";
     }
 
     // -----------------------------------------------------------------------
