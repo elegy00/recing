@@ -76,7 +76,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 | Init. Project Setup | ✅ Done | [details](./migration-to-nodejs/phase-init-project-setup.md) |
 | 0. Foundation (schema) | ✅ Done | [details](./migration-to-nodejs/phase-0-schema.md) |
 | 1. Content Reducer | ✅ Done | [details](./migration-to-nodejs/phase-1-content-reducer.md) |
-| 2. URL Fetcher | ⬜ Not started | [details](./migration-to-nodejs/phase-2-url-fetcher.md) |
+| 2. URL Fetcher | ✅ Done | [details](./migration-to-nodejs/phase-2-url-fetcher.md) |
 | 3. LLM Client | ⬜ Not started | [details](./migration-to-nodejs/phase-3-llm-client.md) |
 | 4. Web API | ⬜ Not started | [details](./migration-to-nodejs/phase-4-web-api.md) |
 | 5. Frontend | ⬜ Not started | [details](./migration-to-nodejs/phase-5-frontend.md) |
@@ -96,7 +96,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 ✅ Init. Project Setup   ← pnpm workspaces + shared TS config + 3 package scaffolds
 ✅ Phase 0: schema     ← Zod schemas for RecipeExtraction/JobSubmission/LlmResult, error codes, 53 tests
 ✅ Phase 1: ingestion/content-reducer   ← Port RecipeContentReducer (reduce + extractTitle) + 20 tests
-Phase 2: ingestion/url-fetcher       ← Port URL fetching + SSRF protection + tests
+✅ Phase 2: ingestion/url-fetcher     ← Port URL fetching + SSRF protection + 133 tests
 Phase 3: ingestion/llm-client        ← Port LLM client + extraction pipeline + tests
 Phase 4: web/api                    ← Express/Hono REST endpoints (pure data layer)
 Phase 5: web/frontend               ← React UI (written from scratch, visual ref only)

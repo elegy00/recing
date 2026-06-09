@@ -12,5 +12,10 @@ export { validateJobSubmission } from "./job-submission.js";
 export { validateMetadata, tokensPerSecond } from "./llm-result.js";
 
 // Errors
-export { AppError, resolveErrorMessage } from "./errors.js";
+export {
+  AppError,
+  FETCH_ERROR_MESSAGES,
+  LLM_ERROR_MESSAGES,
+  resolveErrorMessage,
+} from "./errors.js";
 export { ZodValidationError } from "./zod-helpers.js";
