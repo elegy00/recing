@@ -97,7 +97,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 ✅ Phase 0: schema     ← Zod schemas for RecipeExtraction/JobSubmission/LlmResult, error codes, 53 tests
 ✅ Phase 1: ingestion/content-reducer   ← Port RecipeContentReducer (reduce + extractTitle) + 20 tests
 ✅ Phase 2: ingestion/url-fetcher     ← Port URL fetching + SSRF protection + 133 tests
-Phase 3: ingestion/llm-client        ← Port LLM client + extraction pipeline + tests
+✅ Phase 3: ingestion/llm-client        ← Port LLM client + extraction pipeline + retry logic (39 new tests)
 Phase 4: web/api                    ← Express/Hono REST endpoints (pure data layer)
 Phase 5: web/frontend               ← React UI (written from scratch, visual ref only)
 Phase 6: auth                       ← API key middleware on all routes
