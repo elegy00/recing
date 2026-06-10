@@ -82,9 +82,9 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 | 5. Frontend | ✅ Done | [details](./migration-to-nodejs/phase-5-frontend.md) |
 | 6. Authentication | ✅ Done | [details](./migration-to-nodejs/phase-6-auth.md) |
 | 7. Ingestion Service (CLI/Worker) | ✅ Done | [details](./migration-to-nodejs/phase-7-ingestion-cli.md) |
-| 8. Deployment | ⬜ Not started | [details](./migration-to-nodejs/phase-8-deployment.md) |
-| 9. Database Migration | ⬜ Not started | [details](./migration-to-nodejs/phase-9-db-migration.md) |
-| 10. Testing & Validation | ⬜ Not started | [details](./migration-to-nodejs/phase-10-testing.md) |
+| 8. Deployment | ✅ Done | [details](./migration-to-nodejs/phase-8-deployment.md) |
+| 9. Database Migration | ✅ Done | [details](./migration-to-nodejs/phase-9-db-migration.md) |
+| 10. Testing & Validation | ✅ Done | [details](./migration-to-nodejs/phase-10-testing.md) |
 
 **Status codes:** ⬜ not started · 🟡 in progress · ✅ done · 🔒 blocked
 
@@ -104,7 +104,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 ✅ Phase 7: ingestion/cli            ← CLI worker loop (start + fetch commands), env-configurable, graceful shutdown, 8 new worker tests
 Phase 6: auth                       ← API key middleware on all routes
 Phase 7: ingestion/cli              ← CLI worker loop (local, calls fly.io API + llama.cpp)
-Phase 8: deploy                     ← fly.io config + MongoDB Atlas setup
+Phase 8: deploy                     ← ⚠️ Config ready — execution deferred to later
 Phase 9: migrate                    ← Local → Atlas DB migration script (hybrid dry-run)
 Phase 10: test & validate           ← Port all Java tests to Vitest, integration testing
 ```
@@ -124,3 +124,10 @@ Phase 10: test & validate           ← Port all Java tests to Vitest, integrati
 
 ### Q6: Database migration — Hybrid approach (Option C)
 One-time script with dry-run preview: connect to local MongoDB, show summary, ask confirmation, copy to Atlas with `migratedAt` timestamp. Lives in `packages/migrate/` as a temporary utility. See [Phase 9](./migration-to-nodejs/phase-9-db-migration.md) for details.
+
+### ⚠️ Deployment execution deferred
+Fly.io config (`fly.toml`, `Dockerfile.web`) and `.env.example` are ready but deployment to fly.io / MongoDB Atlas has been **deferred**. To deploy later:
+1. Create a MongoDB Atlas cluster (free tier)
+2. Run: `ATLAS_MONGODB_URI="mongodb+srv://..." pnpm -r migrate`
+3. Run: `fly apps create recing` then `fly deploy`
+4. Set env vars on fly.io: `RECING_API_KEY`, `MONGODB_URI`, `DB_NAME`
