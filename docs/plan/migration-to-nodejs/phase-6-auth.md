@@ -1,32 +1,45 @@
 # Phase 6: Authentication
 
-## Goal
-Add API key authentication to protect the web API.
+## Status: ✅ Done
 
-## Steps
+## Implementation
 
-### Step 7.1 — Auth approach (confirmed)
-**API key via environment variable**
-
-Simplest approach meeting "not publicly available" requirement:
-- Set `RECING_API_KEY` env var on fly.io
-- All requests require `Authorization: Bearer <key>` header or query param
-- No user accounts, no sessions — just one shared secret
-
-Alternatives (deferred to later):
-- **Session-based**: cookie auth → more complex, requires login page
-- **OAuth provider** (GitHub/Google): overkill for MVP
-
-### Step 7.2 — Auth middleware
+### Middleware (`src/auth.ts`)
 ```typescript
-function requireAuth(req, res, next) {
-  const key = req.headers.authorization?.replace('Bearer ', '');
-  if (!key || key !== process.env.RECING_API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
+function authEnabled(): boolean        // true if RECING_API_KEY is set and non-empty
+function requireAuth(): MiddlewareHandler // skips check when disabled, validates Bearer token otherwise
 ```
 
-## Dependencies
-Phase 4 (Web API) — middleware is applied to all routes.
+- **Dev convenience**: When `RECING_API_KEY` is not set, all routes work without authentication
+- **Prod behavior**: All `/api/*` endpoints reject requests with 401 if no/invalid Bearer token
+- **Public endpoint**: `GET /health` remains accessible (for health checks)
+
+### Route Architecture
+```
+/app.ts (Hono)
+├── publicApp
+│   └── GET /health          ← No auth required
+└── api (.use("*", requireAuth()))
+    ├── POST /api/recipes
+    ├── GET  /api/recipes
+    ├── PATCH /api/recipes/:id/result
+    └── DELETE /api/recipes/:id
+```
+
+### Frontend (`src/api.ts`)
+- `authenticatedFetch()` wraps all API calls, automatically adds `Authorization: Bearer <key>` header when key is configured
+- Key read from `<meta name='recing-api-key'>` tag (server-injected) or `globalThis.__RECING_API_KEY` in dev
+
+### Tests (`tests/auth.test.ts`) — 14 tests
+| Category | Tests |
+|----------|-------|
+| `authEnabled()` | false when unset, true when set, false when empty string |
+| Auth disabled mode | POST/GET work without token, /health always works |
+| Auth enabled mode | Missing/wrong/empty Bearer → 401; correct token → success; /health still public |
+
+## Verification
+```bash
+# All tests pass
+npx vitest run                          # ✅ 27 passed (13 recipe + 14 auth)
+npx tsc --noEmit                        # ✅ clean
+```
