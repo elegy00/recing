@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import app from "../src/app.js";
+import app from "../src/hono-app.js";
 import type { DbConfig } from "../src/db.js";
 
 // ─── In-memory MongoDB mock ──────────────────────────────────────────────────

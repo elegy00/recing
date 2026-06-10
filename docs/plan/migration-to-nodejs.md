@@ -79,7 +79,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 | 2. URL Fetcher | ✅ Done | [details](./migration-to-nodejs/phase-2-url-fetcher.md) |
 | 3. LLM Client | ✅ Done | [details](./migration-to-nodejs/phase-3-llm-client.md) |
 | 4. Web API | ✅ Done | [details](./migration-to-nodejs/phase-4-web-api.md) |
-| 5. Frontend | ⬜ Not started | [details](./migration-to-nodejs/phase-5-frontend.md) |
+| 5. Frontend | ✅ Done | [details](./migration-to-nodejs/phase-5-frontend.md) |
 | 6. Authentication | ⬜ Not started | [details](./migration-to-nodejs/phase-6-auth.md) |
 | 7. Ingestion Service (CLI/Worker) | ⬜ Not started | [details](./migration-to-nodejs/phase-7-ingestion-cli.md) |
 | 8. Deployment | ⬜ Not started | [details](./migration-to-nodejs/phase-8-deployment.md) |
@@ -99,7 +99,7 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 ✅ Phase 2: ingestion/url-fetcher     ← Port URL fetching + SSRF protection + 133 tests
 ✅ Phase 3: ingestion/llm-client        ← Port LLM client + extraction pipeline + retry logic (39 new tests)
 ✅ Phase 4: web/api                   ← Hono REST API (POST/GET/PATCH/DELETE /api/recipes + health) + 13 tests
-Phase 5: web/frontend               ← React UI (written from scratch, visual ref only)
+✅ Phase 5: web/frontend            ← React SPA (SubmitPage + RecipeListPage + Header), Hono serves API+static on one port, 13 existing tests still pass
 Phase 6: auth                       ← API key middleware on all routes
 Phase 7: ingestion/cli              ← CLI worker loop (local, calls fly.io API + llama.cpp)
 Phase 8: deploy                     ← fly.io config + MongoDB Atlas setup
