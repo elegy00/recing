@@ -27,6 +27,17 @@ export {
   buildUserPrompt,
 } from "./llm-prompt.js";
 
+// Worker loop + API client
+export type { WorkerConfig, JobResult } from "./worker.js";
+export { runWorker } from "./worker.js";
+export type { ApiClientConfig, WebJob } from "./api-client.js";
+export {
+  fetchPendingJobs,
+  submitJob as ingestSubmitJob,
+  postResult as ingestPostResult,
+  reportFailure as ingestReportFailure,
+} from "./api-client.js";
+
 // Content reducer
 export type { ReducedContent } from "./content-reducer.js";
 export { reduce, extractTitle } from "./content-reducer.js";

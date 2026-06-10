@@ -2,8 +2,9 @@
 
 import { runWorker } from "./worker.js";
 import { fetchUrl } from "./url-fetcher.js";
-import { extractRecipe, type ExtractionConfig, LlmExtractionError } from "./llm-extraction.js";
+import { extractRecipe } from "./llm-extraction.js";
 import { submitJob, postResult, reportFailure } from "./api-client.js";
+import { LlmErrorCode } from "@recing/schema";
 
 // ─── Configuration (env vars) ────────────────────────────────────────────────
 
@@ -16,8 +17,8 @@ function getEnv(name: string): string {
 interface CliConfig {
   webApiUrl: string;
   apiKey: string;
-  llmEndpoint: string;
-  llmModel: string;
+  endpoint: string; // llama.cpp endpoint (matches ExtractionConfig.endpoint)
+  model: string;    // model name (matches ExtractionConfig.model)
   maxContentChars: number;
   pollIntervalMs: number;
 }
@@ -26,8 +27,8 @@ function loadConfig(): CliConfig {
   return {
     webApiUrl: process.env.WEB_API_URL ?? "http://localhost:3000",
     apiKey: getEnv("API_KEY"),
-    llmEndpoint: process.env.LLM_ENDPOINT ?? "http://localhost:8085/v1/chat/completions",
-    llmModel: process.env.LLM_MODEL ?? "qwen3.6",
+    endpoint: process.env.LLM_ENDPOINT ?? "http://localhost:8085/v1/chat/completions",
+    model: process.env.LLM_MODEL ?? "qwen3.6",
     maxContentChars: Number(process.env.MAX_CONTENT_CHARS) || 60_000,
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5_000,
   };
@@ -56,8 +57,8 @@ async function cmdStart(_config: CliConfig): Promise<void> {
   abortController = runWorker({
     baseUrl: config.webApiUrl,
     apiKey: config.apiKey,
-    endpoint: config.llmEndpoint,
-    model: config.llmModel,
+    endpoint: config.endpoint,
+    model: config.model,
     maxContentChars: config.maxContentChars,
     pollIntervalMs: config.pollIntervalMs,
   });
@@ -82,31 +83,21 @@ async function cmdFetch(config: CliConfig, url: string): Promise<void> {
   const jobId = await submitJob({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, url);
   console.warn(`Submitted as job ${jobId}\n`);
 
-  // Step 2: Fetch content
+  // Step 2: Fetch content (throws RecipeFetchException on failure)
   console.warn("Fetching URL...");
   const fetchResult = await fetchUrl(url);
-  if (!fetchResult.ok) {
-    throw new Error(`Fetch failed: ${fetchResult.error}`);
-  }
   console.warn(`Fetched ${fetchResult.finalUrl} (${fetchResult.contentType}, ${fetchResult.body.length} chars)`);
 
-  // Step 3: Extract recipe
+  // Step 3: Extract recipe via LLM
   console.warn("Sending to LLM...");
-  const extraction = await extractRecipe(config, {
-    url: fetchResult.finalUrl,
-    contentType: fetchResult.contentType,
-    title: fetchResult.title ?? null,
-    body: fetchResult.body,
-  });
+  const extraction = await extractRecipe(
+    { endpoint: config.endpoint, model: config.model, maxContentChars: config.maxContentChars },
+    { url: fetchResult.finalUrl, contentType: fetchResult.contentType, title: null, body: fetchResult.body }
+  );
 
-  // Step 4: Post result
+  // Step 4: Post result back to web API
   console.warn("Posting result...");
-  await postResult({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, jobId, extraction.extraction, {
-    model: config.llmModel,
-    endpoint: config.llmEndpoint,
-    tokensIn: extraction.metadata.promptTokens,
-    tokensOut: extraction.metadata.completionTokens,
-  });
+  await postResult({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, jobId, extraction.extraction);
 
   console.warn(`\n✅ Done — job ${jobId} completed`);
 }
@@ -154,7 +145,7 @@ async function main(): Promise<void> {
         const jobIdMatch = String(error).match(/job ([a-f0-9-]+)/i);
         if (jobIdMatch && command === "fetch") {
           try {
-            await reportFailure({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, jobIdMatch[1], "LLM_FAILED", String(error));
+            await reportFailure({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, jobIdMatch[1], LlmErrorCode.LLM_FAILED, String(error));
             console.error("(Reported failure to web API)");
           } catch {
             // Best effort — don't fail on report error

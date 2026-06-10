@@ -66,7 +66,7 @@ export async function postResult(
   config: ApiClientConfig,
   jobId: string,
   extraction: RecipeExtraction,
-  metadata: Record<string, unknown>
+  _metadata?: Record<string, unknown>
 ): Promise<void> {
   const res = await fetch(`${config.baseUrl}/api/recipes/${jobId}/result`, {
     method: "PATCH",
