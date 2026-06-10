@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import type { Context } from "hono";
+import type { Context, Env } from "hono";
+import { requireAuth } from "./auth.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -13,12 +14,28 @@ function uuid(): string {
   return crypto.randomUUID();
 }
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
+// ─── Public Routes (health check — no auth) ──────────────────────────────────
 
-const app = new Hono();
+const publicApp = new Hono<Env>();
+
+publicApp.get("/health", async (c: Context) => {
+  try {
+    const { getDb } = await import("./db.js");
+    const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).command({ ping: 1 });
+    return json(c, { status: "ok" });
+  } catch {
+    return json(c, { status: "error", message: "MongoDB unreachable" }, 503);
+  }
+});
+
+// ─── Authenticated API Routes ────────────────────────────────────────────────
+
+const api = new Hono<Env>().use("*", requireAuth());
 
 // POST /api/recipes — create a new extraction job
-app.post("/api/recipes", async (c: Context) => {
+api.post("/api/recipes", async (c: Context) => {
   const { getDb } = await import("./db.js");
   const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
   const body = await c.req.json();
@@ -45,7 +62,7 @@ app.post("/api/recipes", async (c: Context) => {
 });
 
 // GET /api/recipes — list jobs (filtered by ?status=)
-app.get("/api/recipes", async (c: Context) => {
+api.get("/api/recipes", async (c: Context) => {
   const { getDb } = await import("./db.js");
   const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
   const status = c.req.query("status");
@@ -94,7 +111,7 @@ app.get("/api/recipes", async (c: Context) => {
 });
 
 // PATCH /api/recipes/:id/result — post LLM extraction result (worker only)
-app.patch("/api/recipes/:id/result", async (c: Context) => {
+api.patch("/api/recipes/:id/result", async (c: Context) => {
   const { getDb } = await import("./db.js");
   const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
   const id = c.req.param("id");
@@ -128,7 +145,7 @@ app.patch("/api/recipes/:id/result", async (c: Context) => {
 });
 
 // DELETE /api/recipes/:id — remove a job
-app.delete("/api/recipes/:id", async (c: Context) => {
+api.delete("/api/recipes/:id", async (c: Context) => {
   const { getDb } = await import("./db.js");
   const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
   const id = c.req.param("id");
@@ -142,17 +159,10 @@ app.delete("/api/recipes/:id", async (c: Context) => {
   return json(c, { ok: true });
 });
 
-// Health check endpoint
-app.get("/health", async (c: Context) => {
-  try {
-    const { getDb } = await import("./db.js");
-    const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (db as any).command({ ping: 1 });
-    return json(c, { status: "ok" });
-  } catch {
-    return json(c, { status: "error", message: "MongoDB unreachable" }, 503);
-  }
-});
+// ─── Combine public + authenticated apps ─────────────────────────────────────
+
+const app = new Hono<Env>();
+app.route("", publicApp); // health check (public)
+app.route("", api);       // all /api/* routes require auth
 
 export default app;
