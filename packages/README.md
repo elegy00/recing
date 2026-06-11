@@ -13,8 +13,37 @@ packages/
 ### Prerequisites
 
 - Node.js 22+ (Corepack enabled for pnpm)
-- [MongoDB](https://www.mongodb.com/docs/manual/installation/) running locally on `mongodb://localhost:27017`
+- Podman (for local MongoDB — see below)
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) serving the OpenAI-compatible API on port 8085
+
+### Run MongoDB with Podman
+
+The app expects MongoDB at `mongodb://localhost:27017`. Start it via Podman:
+
+```bash
+podman run -d --name recing-mongo -p 27017:27017 \
+  -v recing-data:/data/db -e MONGO_INITDB_DATABASE=recing \
+  mongo:8.0
+```
+
+| Flag | Purpose |
+|---|---|
+| `--name` | Persistent container name |
+| `-p 27017:27017` | Expose for web app + worker |
+| `-v recing-data:/data/db` | Named volume (persists data) |
+
+**Useful commands:**
+
+```bash
+podman logs recing-mongo                          # view startup
+podman restart recing-mongo                       # restart (preserves data)
+podman exec -it recing-mongo mongosh recing       # mongo shell
+podman rm -vf recing-mongo                        # stop + remove (wipes data!)
+```
+
+Data lives in Podman volume `recing-data` — find host path with `podman volume inspect recing-data`.
+
+### Setup
 
 ### Setup
 
@@ -26,15 +55,15 @@ pnpm install
 Copy and configure environment variables:
 
 ```bash
-cp .env.example .env.local   # optional — all values have sensible defaults
+cp .env.example .env.local   # optional — defaults listed below
 ```
 
-| Variable | Purpose | Default |
-|---|---|---|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/recing` |
-| `DB_NAME` | Database name | `recing` |
-| `RECING_API_KEY` | Bearer token for API auth (leave empty to disable) | *(none)* |
-| `PORT` | HTTP server port | `3000` |
+| Variable | Default |
+|---|---|
+| `MONGODB_URI` | `mongodb://localhost:27017/recing` |
+| `DB_NAME` | `recing` |
+| `RECING_API_KEY` | *(none — auth disabled when empty)* |
+| `PORT` | `3000` |
 
 ### Start the Web App
 
@@ -66,12 +95,12 @@ API_KEY=secret tsx src/cli.ts fetch "https://example.com/my-recipe"
 
 Required env vars for the worker:
 
-| Variable | Purpose | Default |
-|---|---|---|
-| `API_KEY` | Bearer token matching the web API's key | *(required)* |
-| `WEB_API_URL` | Web app base URL | `http://localhost:3000` |
-| `LLM_ENDPOINT` | llama.cpp OpenAI-compatible endpoint | `http://localhost:8085/v1/chat/completions` |
-| `LLM_MODEL` | Model name | `qwen3.6` |
+| Variable | Default |
+|---|---|
+| `API_KEY` | *(required — matches web API key)* |
+| `WEB_API_URL` | `http://localhost:3000` |
+| `LLM_ENDPOINT` | `http://localhost:8085/v1/chat/completions` |
+| `LLM_MODEL` | `qwen3.6` |
 
 ### Run All Tests
 
@@ -84,41 +113,25 @@ pnpm -r test       # same as above, explicit workspace run
 
 ## How to Deploy to the Cloud
 
-### 1. MongoDB Atlas
+### MongoDB Atlas
 
-Create a free-tier cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas), then get your connection string:
+Create a free-tier cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas):
 
 ```bash
 export ATLAS_MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/recing?retryWrites=true&w=majority"
 ```
 
-### 2. Migrate Existing Data (if any)
+Migrate existing local data (if any): `ATLAS_MONGODB_URI="$ATLAS_MONGODB_URI" pnpm -r migrate`.
 
-If you have data in a local MongoDB and want to move it to Atlas, run the migration script:
-
-```bash
-ATLAS_MONGODB_URI="mongodb+srv://..." pnpm -r migrate --dry-run   # preview first
-ATLAS_MONGODB_URI="mongodb+srv://..." pnpm -r migrate              # confirm & copy
-```
-
-This copies all `jobs` documents with a `migratedAt` timestamp.
-
-### 3. Deploy to fly.io
+### Deploy to fly.io
 
 ```bash
-# Create the app (if not already created)
 fly apps create recing --org <your-org>
-
-# Set environment variables on fly.io
-fly secrets set RECING_API_KEY="your-secret-key"
-fly secrets set MONGODB_URI="$ATLAS_MONGODB_URI"
-fly secrets set DB_NAME=recing
-
-# Deploy
+fly secrets set RECING_API_KEY="your-secret-key" MONGODB_URI="$ATLAS_MONGODB_URI"
 fly deploy
 ```
 
-`Dockerfile.web` builds a minimal image serving the Hono API + React SPA on port 3000. Ingestion runs separately (see below).
+`Dockerfile.web` builds a minimal image serving the Hono API + React SPA on port 3000. Ingestion runs locally.
 
 ### Architecture After Deployment
 
@@ -131,4 +144,4 @@ fly deploy
   Local Worker (llama.cpp :8085)
 ```
 
-The ingestion worker runs **locally** — polls the fly.io API for pending jobs, processes them via your local llama.cpp instance, and posts results back. No cloud resources needed for job processing.
+The ingestion worker runs **locally** — polls the fly.io API for pending jobs, processes via local llama.cpp, posts results back.
