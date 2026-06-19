@@ -45,11 +45,13 @@ export interface RecipeInstruction {
 
 const RECIPE_SCHEMA_VERSION = "recipe_extraction.v1";
 
-/** Base schema for all recipe extractions. */
+/** Base schema for all recipe extractions. Fields like schemaVersion, sourceUrl,
+ * and notes are optional here because the LLM (without an embedded JSON Schema)
+ * may omit them. Missing values are filled in by parseRecipeExtraction(). */
 const baseSchema = z.object({
-  schemaVersion: z.literal(RECIPE_SCHEMA_VERSION),
+  schemaVersion: nullString(z.literal(RECIPE_SCHEMA_VERSION)),
   status: z.enum(["extracted", "unusable"]),
-  sourceUrl: z.string().url(),
+  sourceUrl: nullString(z.string().url()),
   recipeName: nullString(z.string()),
   description: nullString(z.string()),
   prepTime: nullString(z.string()),
@@ -59,9 +61,9 @@ const baseSchema = z.object({
   cuisine: nullString(z.string()),
   category: nullString(z.string()),
   keywords: nullString(z.string()),
-  ingredients: ingredientSchema.array(),
-  instructions: instructionSchema.array(),
-  notes: z.array(z.string().min(1)),
+  ingredients: ingredientSchema.array().optional().default([]),
+  instructions: instructionSchema.array().optional().default([]),
+  notes: z.array(z.string().min(1)).optional().default([]),
   unusableReason: nullString(z.string()),
 });
 
@@ -85,13 +87,27 @@ export interface RecipeExtraction {
   unusableReason: string | null;
 }
 
+/** Generates a simple deterministic ID from the raw input for fallback sourceUrl. */
+function generateId(data: unknown): string {
+  const hash = JSON.stringify(data ?? "").split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+  return `recipe:${Math.abs(hash).toString(16).padStart(8, "0")}`;
+}
+
 /** Validates raw data against the JSON schema rules, or throws on failure. */
 export function parseRecipeExtraction(raw: unknown): RecipeExtraction {
   const parsed = baseSchema.safeParse(raw);
   if (!parsed.success) {
     throw new ZodValidationError(parsed.error);
   }
-  const data = parsed.data;
+  let data = parsed.data;
+
+  // Fill in missing required-ish fields that the LLM may omit (no JSON Schema was sent)
+  if (!data.schemaVersion || data.schemaVersion === "recipe_extraction.v1") {
+    data = { ...data, schemaVersion: RECIPE_SCHEMA_VERSION };
+  }
+  if (!data.sourceUrl) {
+    data = { ...data, sourceUrl: generateId(raw) };
+  }
 
   // Conditional validation (from JSON schema allOf/if-then)
   if (data.status === "extracted") {

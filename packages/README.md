@@ -13,35 +13,28 @@ packages/
 ### Prerequisites
 
 - Node.js 22+ (Corepack enabled for pnpm)
-- Podman (for local MongoDB — see below)
+- Docker / Docker Compose (for local MongoDB — see below)
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) serving the OpenAI-compatible API on port 8085
 
-### Run MongoDB with Podman
+### Run MongoDB with Docker Compose
 
-The app expects MongoDB at `mongodb://localhost:27017`. Start it via Podman:
+The app expects MongoDB at `mongodb://localhost:27017`. Start it from the project root:
 
 ```bash
-podman run -d --name recing-mongo -p 27017:27017 \
-  -v recing-data:/data/db -e MONGO_INITDB_DATABASE=recing \
-  mongo:8.0
+docker compose up -d
 ```
 
-| Flag | Purpose |
-|---|---|
-| `--name` | Persistent container name |
-| `-p 27017:27017` | Expose for web app + worker |
-| `-v recing-data:/data/db` | Named volume (persists data) |
+See [../docker-compose.yml](../docker-compose.yml) for full configuration. Volume `recing-mongo-data` persists data across restarts.
 
 **Useful commands:**
 
 ```bash
-podman logs recing-mongo                          # view startup
-podman restart recing-mongo                       # restart (preserves data)
-podman exec -it recing-mongo mongosh recing       # mongo shell
-podman rm -vf recing-mongo                        # stop + remove (wipes data!)
+docker compose logs mongo                         # view startup
+docker compose restart mongo                      # restart (preserves data)
+docker exec -it recing-mongo mongosh recing       # mongo shell
+docker compose down                               # stop + remove containers
+docker compose down -v                            # stop, remove containers AND volumes
 ```
-
-Data lives in Podman volume `recing-data` — find host path with `podman volume inspect recing-data`.
 
 ### Setup
 

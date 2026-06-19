@@ -8,7 +8,8 @@ import { reduce, extractTitle } from "./content-reducer.js";
 import * as schema from "@recing/schema";
 
 import type { LlamaClientConfig } from "./llm-client.js";
-import { buildRequest, sendChatCompletion, ChatCompletionResponse, LlmClientError } from "./llm-client.js";
+import { buildRequest, sendChatCompletion, LlmClientError } from "./llm-client.js";
+import type { ChatCompletionResponse } from "./llm-client.js";
 import {
   PROMPT_VERSION,
   SCHEMA_VERSION,

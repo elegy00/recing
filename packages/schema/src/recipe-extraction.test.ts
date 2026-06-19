@@ -59,10 +59,7 @@ describe("parseRecipeExtraction", () => {
     expect(result.unusableReason).toBe("No recipe found on page");
   });
 
-  it("rejects missing schemaVersion", () => {
-    const bad = { ...validExtracted, schemaVersion: "v2" };
-    expect(() => parseRecipeExtraction(bad)).toThrow();
-  });
+
 
   it("rejects wrong status enum value", () => {
     const bad = { ...validExtracted, status: "unknown" as unknown as "extracted" | "unusable" };
@@ -95,6 +92,38 @@ describe("parseRecipeExtraction", () => {
     expect(() => parseRecipeExtraction(bad)).toThrow();
   });
 
+  it("fills in missing schemaVersion and sourceUrl (LLM-friendly)", () => {
+    const minimal = {
+      status: "extracted" as const,
+      recipeName: "Minimal",
+      ingredients: [{ quantity: null, unit: "", name: "x", note: null, originalText: "x" }],
+      instructions: [{ stepNumber: 1, text: "y", timer: null }],
+    };
+    const result = parseRecipeExtraction(minimal);
+    expect(result.schemaVersion).toBe("recipe_extraction.v1");
+    expect(result.sourceUrl.startsWith("recipe:")).toBe(true);
+    expect(result.notes).toEqual([]);
+  });
+
+  it("accepts LLM-like input with extra unknown fields", () => {
+    const llmLike = {
+      status: "extracted" as const,
+      recipeName: "Test",
+      description: null,
+      prepTime: "PT25M",
+      cookTime: "PT25M",
+      totalTime: "PT50M",
+      recipeYield: "4 Personen",       // extra field — LLM used this instead of servings
+      recipeCategory: "Hauptspeise",   // extra field — LLM used this instead of category
+      ingredients: [{ quantity: "400", unit: "g", name: "Krautstiel", note: null, originalText: "400 g Krautstiel" }],
+      instructions: [{ stepNumber: 1, text: "Test." }],
+      nutrition: { calories: "863 kcal" }, // extra field — not in schema
+    };
+    const result = parseRecipeExtraction(llmLike);
+    expect(result.status).toBe("extracted");
+    expect(result.recipeName).toBe("Test");
+  });
+
   it("transforms undefined to null for nullable fields", () => {
     const minimal = {
       schemaVersion: "recipe_extraction.v1" as const,
@@ -118,9 +147,19 @@ describe("parseRecipeExtraction", () => {
     parseRecipeExtraction(minimal);
   });
 
-  it("rejects non-URL sourceUrl", () => {
-    const bad = { ...validExtracted, sourceUrl: "not-a-url" };
-    expect(() => parseRecipeExtraction(bad)).toThrow();
+  it("fills in sourceUrl even when provided URL is invalid (fallback)", () => {
+    // If sourceUrl is missing or invalid, the parser generates one
+    const minimal = {
+      status: "unusable" as const,
+      sourceUrl: undefined as unknown as string,
+      recipeName: null,
+      unusableReason: "test",
+      description: null, prepTime: null, cookTime: null, totalTime: null,
+      servings: null, cuisine: null, category: null, keywords: null,
+      ingredients: [], instructions: [], notes: [],
+    };
+    const result = parseRecipeExtraction(minimal);
+    expect(result.sourceUrl.startsWith("recipe:")).toBe(true);
   });
 });
 

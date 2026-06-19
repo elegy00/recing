@@ -162,7 +162,7 @@ Spring Boot auto-configures MongoDB via `spring-boot-starter-data-mongodb`. No t
 - `RecipeControllerTest.jobPage_completed()`: GET job page after completion renders `result` template with extraction data.
 - `RecipeControllerTest.jobPage_loading()`: GET job page while processing renders `job-loading` template.
 - `RecipeControllerTest.jobPage_failed()`: GET job page on failure shows error, returns to index view.
-- Manual test: run MongoDB locally via `podman run ...`, submit URL in browser, verify redirect → loading → result flow.
+- Manual test: run MongoDB locally via `docker compose up -d`, submit URL in browser, verify redirect → loading → result flow.
 
 ## Dependencies to add (pom.xml)
 

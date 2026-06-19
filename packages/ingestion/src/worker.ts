@@ -1,4 +1,5 @@
 import { fetchUrl } from "./url-fetcher.js";
+import { RecipeFetchException } from "./recipe-fetch-exception.js";
 import { extractRecipe, type ExtractionConfig, LlmExtractionError } from "./llm-extraction.js";
 import {
   fetchPendingJobs,
@@ -32,11 +33,7 @@ async function processJob(config: WorkerConfig, job: WebJob): Promise<JobResult>
   try {
     // Step 1: Fetch the URL content
     console.warn(`[job:${jobId}] Fetching ${url}`);
-    const fetchResult = await fetchUrl(url);
-
-    if (!fetchResult.ok) {
-      throw new Error(`URL fetch failed: ${fetchResult.error}`);
-    }
+    const fetchResult = await fetchUrl(url); // throws RecipeFetchException on failure
 
     // Step 2: Extract recipe via LLM
     console.warn(`[job:${jobId}] Extracting recipe from ${fetchResult.finalUrl} (${fetchResult.contentType})`);
@@ -58,10 +55,13 @@ async function processJob(config: WorkerConfig, job: WebJob): Promise<JobResult>
 
     return { jobId, url, success: true };
   } catch (error) {
-    let errorCode = "LLM_FAILED" as const;
+    let errorCode: string = "LLM_FAILED";
     let errorMessage = String(error);
 
-    if (error instanceof LlmExtractionError) {
+    if (error instanceof RecipeFetchException) {
+      errorCode = `FETCH_${error.code}`;
+      errorMessage = error.message; // already user-friendly from schema messages
+    } else if (error instanceof LlmExtractionError) {
       errorCode = error.code;
       errorMessage = error.getUserMessage();
     } else if (error instanceof Error && "statusCode" in error) {

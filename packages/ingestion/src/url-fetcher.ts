@@ -92,7 +92,11 @@ export async function fetchUrl(submittedUrl: string): Promise<RecipeFetchResult>
         throw new RecipeFetchException(FetchErrorCode.UNREACHABLE_HOST);
       }
 
-      throw new RecipeFetchException(FetchErrorCode.FETCH_FAILED, message);
+      // Generic network error — include the raw error name for diagnostics
+      const fallback = err instanceof Error && err.name !== "Error"
+        ? `[${err.name}]`
+        : "[unknown]";
+      throw new RecipeFetchException(FetchErrorCode.FETCH_FAILED, `${message || fallback}`);
     }
   }
 
