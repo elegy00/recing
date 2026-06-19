@@ -60,14 +60,22 @@ The submission is stored as a PENDING job for the worker to process.
 
 The worker polls the web API for pending jobs and processes them via llama.cpp.
 
+First, configure your `.env` file (copy from `.env.example` and adjust):
+
+```bash
+cp .env.example .env
+```
+
+Then run:
+
 ```bash
 cd packages/ingestion
 
-# Start the polling loop
-API_KEY=secret pnpm exec tsx src/cli.ts start
+# Start the polling loop (loads .env automatically)
+pnpm dev:start
 
 # Or run a single-shot extraction (for testing/debugging)
-API_KEY=secret pnpm exec tsx src/cli.ts fetch "https://example.com/my-recipe"
+pnpm dev:fetch "https://example.com/my-recipe"
 ```
 
 Worker environment variables:
