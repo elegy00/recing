@@ -144,6 +144,48 @@ api.patch("/api/recipes/:id/result", async (c: Context) => {
   return json(c, result);
 });
 
+// GET /api/recipes/:id — fetch a single completed recipe by ID
+api.get("/api/recipes/:id", async (c: Context) => {
+  const { getDb } = await import("./db.js");
+  const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
+  const id = c.req.param("id");
+
+  // Fetch the job and validate it has a completed valid extraction in JS
+  const recipe = await db.collection("jobs").findOne({ _id: id } as any);
+  if (!recipe || recipe.status !== "COMPLETED" || !recipe.result) {
+    return json(c, { error: "Recipe not found" }, 404);
+  }
+
+  const r = recipe.result;
+  if (r.status !== "extracted" || !r.recipeName ||
+      !Array.isArray(r.ingredients) || r.ingredients.length === 0 ||
+      !Array.isArray(r.instructions) || r.instructions.length === 0) {
+    return json(c, { error: "Recipe not found" }, 404);
+  }
+
+  return json(c, { recipe });
+});
+
+// PATCH /api/recipes/:id/retry — move FAILED → PENDING for re-processing
+api.patch("/api/recipes/:id/retry", async (c: Context) => {
+  const { getDb } = await import("./db.js");
+  const db = await getDb({ url: process.env.MONGODB_URI ?? "mongodb://localhost:27017", dbName: process.env.DB_NAME ?? "recing" });
+  const id = c.req.param("id");
+  const now = new Date().toISOString();
+
+  const result = await db.collection("jobs").findOneAndUpdate(
+    { _id: id, status: "FAILED" } as any,
+    { $set: { status: "PENDING", result: null, error: null, updatedAt: now } },
+    { returnDocument: "after" as const }
+  );
+
+  if (!result) {
+    return json(c, { error: "Job not found or not in FAILED state" }, 404);
+  }
+
+  return json(c, { ok: true });
+});
+
 // DELETE /api/recipes/:id — remove a job
 api.delete("/api/recipes/:id", async (c: Context) => {
   const { getDb } = await import("./db.js");

@@ -9,8 +9,14 @@ const nullString = (schema: z.ZodType<string>) =>
 
 // ─── Ingredient ──────────────────────────────────────────────────────────────
 
+/** Accept string or number for quantity, always normalize to string | null. */
+const nullableQuantity = z
+  .union([z.string(), z.number()])
+  .nullish()
+  .transform((v) => (v === undefined || v === null ? null : String(v)));
+
 const ingredientSchema = z.object({
-  quantity: nullString(z.string()),
+  quantity: nullableQuantity,
   unit: nullString(z.string()),
   name: z.string().min(1),
   note: nullString(z.string()),
@@ -102,9 +108,7 @@ export function parseRecipeExtraction(raw: unknown): RecipeExtraction {
   let data = parsed.data;
 
   // Fill in missing required-ish fields that the LLM may omit (no JSON Schema was sent)
-  if (!data.schemaVersion || data.schemaVersion === "recipe_extraction.v1") {
-    data = { ...data, schemaVersion: RECIPE_SCHEMA_VERSION };
-  }
+  data = { ...data, schemaVersion: RECIPE_SCHEMA_VERSION };
   if (!data.sourceUrl) {
     data = { ...data, sourceUrl: generateId(raw) };
   }
@@ -131,7 +135,9 @@ export function parseRecipeExtraction(raw: unknown): RecipeExtraction {
     }
   }
 
-  return data;
+  // After the transforms above, all required fields are guaranteed to be set.
+  // TypeScript can't narrow this through reassignment, so we assert.
+  return data as RecipeExtraction;
 }
 
 /** Returns true if this is a valid extracted recipe. */

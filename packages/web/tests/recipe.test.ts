@@ -19,6 +19,10 @@ class MemoryCollection implements AsyncIterable<Doc> {
   async findOneAndUpdate(filter: Record<string, any>, update: { $set: Record<string, unknown> }, opts: { returnDocument: "after" }): Promise<Doc | null> {
     const doc = this.store.get(filter._id);
     if (!doc) return null;
+    // Honor compound filters (e.g. { _id, status })
+    for (const [k, v] of Object.entries(filter)) {
+      if (k !== "_id" && (doc as Record<string, unknown>)[k] !== v) return null;
+    }
     Object.assign(doc, update.$set);
     this.store.set(doc._id as string, doc);
     return opts.returnDocument === "after" ? doc : null;
@@ -313,6 +317,73 @@ describe("GET /api/recipes", () => {
   });
 });
 
+// ─── GET /api/recipes/:id ───────────────────────────────────────────────────
+
+describe("GET /api/recipes/:id", () => {
+  it("returns a completed valid recipe by ID", async () => {
+    await mockDb.collection("jobs").insertOne({
+      _id: "get-recipe-1", url: "http://example.com/spaghetti",
+      status: "COMPLETED", createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), result: {
+        schemaVersion: "recipe_extraction.v1", status: "extracted",
+        sourceUrl: "http://example.com/spaghetti", recipeName: "Spaghetti Bolognese",
+        description: "A classic Italian pasta dish.",
+        ingredients: [
+          { name: "spaghetti", originalText: "400g spaghetti" },
+          { name: "ground beef", originalText: "500g ground beef" },
+        ],
+        instructions: [
+          { stepNumber: 1, text: "Boil water and cook pasta.", timer: null },
+          { stepNumber: 2, text: "Brown the meat. Cook for 8 minutes.", timer: "8 min" },
+          { stepNumber: 3, text: "Combine and serve." },
+        ],
+        notes: [],
+      },
+    });
+
+    const res = await req("GET", "/api/recipes/get-recipe-1");
+    expect(res.status).toBe(200);
+    const data = await json<{ recipe: unknown }>(res);
+    expect((data.recipe as Record<string, unknown>).url).toBe("http://example.com/spaghetti");
+    expect((data.recipe as Record<string, unknown>)?.result?.recipeName).toBe("Spaghetti Bolognese");
+
+    await mockDb.collection("jobs").deleteMany({});
+  });
+
+  it("returns 404 for a PENDING job", async () => {
+    await mockDb.collection("jobs").insertOne({
+      _id: "pending-recipe", url: "http://example.com/waiting",
+      status: "PENDING", createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), result: null,
+    });
+
+    const res = await req("GET", "/api/recipes/pending-recipe");
+    expect(res.status).toBe(404);
+    const data = await json<{ error: string }>(res);
+    expect(data.error).toBe("Recipe not found");
+
+    await mockDb.collection("jobs").deleteMany({});
+  });
+
+  it("returns 404 for an unknown ID", async () => {
+    const res = await req("GET", "/api/recipes/nonexistent-id");
+    expect(res.status).toBe(404);
+  });
+
+  it("excludes FAILED jobs", async () => {
+    await mockDb.collection("jobs").insertOne({
+      _id: "failed-recipe", url: "http://example.com/failed",
+      status: "FAILED", createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), result: null, error: "LLM timeout",
+    });
+
+    const res = await req("GET", "/api/recipes/failed-recipe");
+    expect(res.status).toBe(404);
+
+    await mockDb.collection("jobs").deleteMany({});
+  });
+});
+
 // ─── PATCH /api/recipes/:id/result ──────────────────────────────────────────
 
 describe("PATCH /api/recipes/:id/result", () => {
@@ -384,6 +455,53 @@ describe("DELETE /api/recipes/:id", () => {
 
   it("returns 404 for unknown job id", async () => {
     const res = await req("DELETE", "/api/recipes/nonexistent-id");
+    expect(res.status).toBe(404);
+  });
+});
+
+// ─── PATCH /api/recipes/:id/retry ────────────────────────────────────────────
+
+describe("PATCH /api/recipes/:id/retry", () => {
+  it("moves FAILED job to PENDING, clears result and error", async () => {
+    const insertRes = await mockDb.collection("jobs").insertOne({
+      _id: "retry-1",
+      url: "http://example.com/failed",
+      status: "FAILED",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      result: { recipeName: null, ingredients: [], instructions: [], notes: [] },
+      error: "LLM timeout on attempt 1",
+    });
+
+    const res = await req("PATCH", `/api/recipes/${insertRes.insertedId}/retry`);
+    expect(res.status).toBe(200);
+    const data = await json<{ ok: boolean }>(res);
+    expect(data.ok).toBe(true);
+
+    // Verify the job was reset
+    const updated = await mockDb.collection("jobs").findOne({ _id: insertRes.insertedId });
+    expect(updated?.status).toBe("PENDING");
+    expect((updated as Record<string, unknown>)?.result).toBe(null);
+    expect((updated as Record<string, unknown>)?.error).toBe(null);
+  });
+
+  it("returns 404 for a job that is not in FAILED state", async () => {
+    await mockDb.collection("jobs").insertOne({
+      _id: "retry-2",
+      url: "http://example.com/pending",
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      result: null,
+      error: null,
+    });
+
+    const res = await req("PATCH", "/api/recipes/retry-2/retry");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for unknown job id", async () => {
+    const res = await req("PATCH", "/api/recipes/nonexistent-id/retry");
     expect(res.status).toBe(404);
   });
 });

@@ -1,21 +1,30 @@
 export interface RecipeResult {
-  extraction: {
-    schemaVersion: string;
-    status: string;
-    sourceUrl?: string;
-    recipeName?: string | null;
-    ingredients: Array<{ name: string; originalText?: string }>;
-    instructions: Array<{ stepNumber: number; text: string }>;
-    notes: string[];
-  };
-  metadata: {
-    modelEndpoint: string;
-    model: string;
-    durationMs: number;
-    httpStatusCode: number;
-    promptTokens: number;
-    completionTokens: number;
-  };
+  schemaVersion?: string | null;
+  status?: string | null;
+  sourceUrl?: string | null;
+  recipeName?: string | null;
+  description?: string | null;
+  prepTime?: string | null;
+  cookTime?: string | null;
+  totalTime?: string | null;
+  servings?: string | null;
+  cuisine?: string | null;
+  category?: string | null;
+  keywords?: string | null;
+  ingredients: Array<{
+    quantity?: string | null;
+    unit?: string | null;
+    name: string;
+    note?: string | null;
+    originalText?: string;
+  }>;
+  instructions: Array<{
+    stepNumber: number;
+    text: string;
+    timer?: string | null;
+  }>;
+  notes: string[];
+  unusableReason?: string | null;
 }
 
 export interface Job {
@@ -67,7 +76,19 @@ export async function listRecipes(status?: string): Promise<Job[]> {
   return (await res.json()).recipes;
 }
 
+export async function getRecipe(id: string): Promise<Job> {
+  const res = await authenticatedFetch(`/api/recipes/${id}`);
+  if (!res.ok) throw new Error(`Failed to load recipe: ${res.statusText}`);
+  return (await res.json()).recipe;
+}
+
 export async function deleteRecipe(id: string): Promise<void> {
   const res = await authenticatedFetch(`/api/recipes/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to delete: ${res.statusText}`);
+}
+
+/** Move a FAILED job back to PENDING so it gets re-processed. */
+export async function retryRecipe(id: string): Promise<void> {
+  const res = await authenticatedFetch(`/api/recipes/${id}/retry`, { method: "PATCH" });
+  if (!res.ok) throw new Error(`Failed to retry: ${res.statusText}`);
 }

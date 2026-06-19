@@ -92,6 +92,22 @@ describe("parseRecipeExtraction", () => {
     expect(() => parseRecipeExtraction(bad)).toThrow();
   });
 
+  it("accepts numeric quantity and converts to string", () => {
+    const result = parseRecipeExtraction({
+      status: "extracted" as const,
+      recipeName: "Numeric Qty",
+      ingredients: [
+        { quantity: 250, unit: "g", name: "Mehl", note: null, originalText: "250 g Mehl" },
+        { quantity: 0.75, unit: "TL", name: "Salz", note: null, originalText: "0.75 TL Salz" },
+        { quantity: null, unit: null, name: "Fleur de Sel", note: "wenig", originalText: "wenig Fleur de Sel" },
+      ],
+      instructions: [{ stepNumber: 1, text: "Mix." }],
+    });
+    expect(result.ingredients[0].quantity).toBe("250");
+    expect(result.ingredients[1].quantity).toBe("0.75");
+    expect(result.ingredients[2].quantity).toBeNull();
+  });
+
   it("fills in missing schemaVersion and sourceUrl (LLM-friendly)", () => {
     const minimal = {
       status: "extracted" as const,
