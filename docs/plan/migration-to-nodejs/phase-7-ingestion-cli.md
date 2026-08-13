@@ -4,22 +4,29 @@
 
 ## Architecture
 
+In production, this runs as the `recing-ingestion` k8s Deployment (1 replica):
+
 ```
-┌───────────────────────────────┐
-│   Local Machine               │
-│                               │
-│  ┌─────────────────────────┐  │     REST API calls to fly.io
-│  │  recing-ingest start    ├────▶ POST /api/recipes?status=PENDING
-│  │                         │  │     PATCH /api/recipes/:id/result
-│  │  Loop:                  │  │
-│  │  1. GET pending jobs    │  │
-│  │  2. For each job:       │  │
-│  │     a. fetchUrl(url)    │  │     llama.cpp on local port
-│  │     b. extractRecipe()  ├─────▶ :8085/v1/chat/completions
-│  │     c. POST result      │  │
-│  │  3. Sleep POLL_INTERVAL │  │
-│  └─────────────────────────┘  │
-└───────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│  k8s Cluster (LAN)                                │
+│                                                   │
+│  ┌──────────────────────┐  ┌─────────────────┐   │
+│  │ Deployment: web      │  │ llama-cpp svc   │   │
+│  │                      │  │ (:8085)         │   │
+│  │  POST /api/recipes   │  │                 │   │
+│  │  GET /recipes?st=P   │──│  fetch + LLM    │   │
+│  │  PATCH /:id/result   │  │                 │   │
+│  └──────────┬───────────┘  └─────────────────┘   │
+│             │                                     │
+│  ┌──────────▼───────────┐                        │
+│  │ Deployment:          │  Loop:                 │
+│  │ ingestion            │  1. GET pending jobs   │
+│  │                      │  2. fetchUrl + extract │
+│  │  recing-ingest start ├────▶ PATCH /:id/result │
+│  │                      │                        │
+│  │  3. Sleep INTERVAL   │                        │
+│  └──────────────────────┘                        │
+└───────────────────────────────────────────────────┘
 ```
 
 ## Files Created

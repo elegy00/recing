@@ -17,53 +17,49 @@
        │ MongoDB (local)
 ```
 
-## Target State (TypeScript/Node.js on fly.io)
+## Target State (TypeScript/Node.js on Kubernetes)
 
 ```
-                        ┌───────────────────────┐
-                        │  Fly.io App           │
-                        │                       │
-                        │  Web App              │  ← TypeScript + React SPA
-                        │  (pure API + UI)      │     No job processing,
-                        │                       │     only reads/writes MongoDB
-                        │  ┌─────────────────┐  │
-         POST URL       │  │ GET /recipes    │  │
-         DELETE /:id     │  │ GET /recipes/:id│  │
-            ▲           │  └─────────────────┘  │
-            │           │                       │
-            │           │   MongoDB Atlas Cloud │
-            └───────────┼───────────────────────┘
-                        │
-         ┌──────────────┘
-         │ REST API calls (fetch + post result)
-         ▼
-┌──────────────────────────┐
-│  Local Machine           │
-│                          │
-│  Ingestion CLI Worker    │  ← TypeScript standalone app
-│                          │     Runs in a loop locally:
-│  Loop:                   │     1. GET /api/recipes?status=pending
-│  ┌────────────────────┐  │     2. Call local llama.cpp (REST)
-│  │ fetch pending jobs │  │     3. POST result to API
-│  └─────────┬──────────┘  │
-│            ▼             │
-│  ┌────────────────────┐  │
-│  │ llama.cpp server   │  │  ← local process (e.g., qwen3.6)
-│  │ :8085              │  │     stays on your machine
-│  └────────────────────┘  │
-└──────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Kubernetes Cluster (LAN)                                    │
+│                                                              │
+│  ┌──────────────────┐   ┌──────────────┐                    │
+│  │ Deployment: web  │   │  llama-cpp   │                    │
+│  │ (Hono + React)   │   │  Service     │                    │
+│  │                  │   │  (:8085)     │                    │
+│  │  ┌────────────┐  │   └──────────────┘                    │
+│  │  │ Hono API   │  │                                      │
+│  │  │ React SPA  │  │   ┌────────────┐                     │
+│  │  └─────┬──────┘  │   │  postgres  │                     │
+│  └────────┼─────────┘   │  (external)│                     │
+│           │             └────────────┘                     │
+│  ┌────────▼─────────┐                                       │
+│  │ Deployment:      │   ┌───────────────┐                   │
+│  │ ingestion        │──►│  Ingress      │                   │
+│  │ (polling loop)   │   │  recing.lan   │                   │
+│  └──────────────────┘   └───────────────┘                    │
+│                                                              │
+│  Both pods share one Postgres instance                       │
+│  Ingestion pod: 1 replica (single-threaded)                  │
+│  Web pod: 1-2 replicas (stateless)                           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Package Breakdown (Monorepo)
 
 ```
-recing/                          ← project root (pnpm workspaces or npm workspaces)
+recing/                          ← project root (pnpm workspaces)
 ├── packages/
 │   ├── schema/                  # Shared types, validation schemas
-│   ├── ingestion/               # Local CLI worker — fetches URLs, calls llama.cpp
-│   └── web/                     # Main application — API + UI on fly.io
-│
-├── docs/plan/migration-to-nodejs.md  ← you are here
+│   ├── web/                     # Hono API + React SPA (k8s: web pod)
+│   ├── ingestion/               # Worker — fetches URLs, calls llama.cpp (k8s: ingestion pod)
+│   └── migrate/                 # Postgres migration runner
+├── k8s/                         # Kubernetes manifests + Dockerfiles
+│   ├── web.yaml                 # Web deployment + service
+│   ├── ingestion.yaml           # Ingestion deployment
+│   ├── Dockerfile.web           # Web container image
+│   ├── Dockerfile.ingestion     # Worker container image
+│   └── README.md                # Deployment guide
 └── pnpm-workspace.yaml
 ```
 
@@ -81,53 +77,42 @@ recing/                          ← project root (pnpm workspaces or npm worksp
 | 4. Web API | ✅ Done | [details](./migration-to-nodejs/phase-4-web-api.md) |
 | 5. Frontend | ✅ Done | [details](./migration-to-nodejs/phase-5-frontend.md) |
 | 6. Authentication | ✅ Done | [details](./migration-to-nodejs/phase-6-auth.md) |
-| 7. Ingestion Service (CLI/Worker) | ✅ Done | [details](./migration-to-nodejs/phase-7-ingestion-cli.md) |
-| 8. Deployment | ✅ Done | [details](./migration-to-nodejs/phase-8-deployment.md) |
-| 9. Database Migration | ✅ Done | [details](./migration-to-nodejs/phase-9-db-migration.md) |
-| 10. Testing & Validation | ✅ Done | [details](./migration-to-nodejs/phase-10-testing.md) |
+| 7. Ingestion Service (Worker) | ✅ Done | [details](./migration-to-nodejs/phase-7-ingestion-cli.md) |
+| 8. Deployment (k8s + Postgres) | 🔄 Planned | [details](./migration-to-nodejs/phase-8-deployment.md) |
+| 9. DB Migration (Mongo → Postgres) | 🔄 Planned | [details](./migration-to-nodejs/phase-9-db-migration.md) |
+| 10. Testing & Validation | 🔄 Planned | [details](./migration-to-nodejs/phase-10-testing.md) |
 
-**Status codes:** ⬜ not started · 🟡 in progress · ✅ done · 🔒 blocked
+**Status codes:** ⬜ not started · 🟡 in progress · ✅ done · 🔒 blocked · 🔄 planned
 
 ---
 
 ## Execution Order Summary
 
 ```
-✅ Init. Project Setup   ← pnpm workspaces + shared TS config + 3 package scaffolds
-✅ Phase 0: schema     ← Zod schemas for RecipeExtraction/JobSubmission/LlmResult, error codes, 53 tests
-✅ Phase 1: ingestion/content-reducer   ← Port RecipeContentReducer (reduce + extractTitle) + 20 tests
-✅ Phase 2: ingestion/url-fetcher     ← Port URL fetching + SSRF protection + 133 tests
-✅ Phase 3: ingestion/llm-client        ← Port LLM client + extraction pipeline + retry logic (39 new tests)
-✅ Phase 4: web/api                   ← Hono REST API (POST/GET/PATCH/DELETE /api/recipes + health) + 13 tests
-✅ Phase 5: web/frontend            ← React SPA (SubmitPage + RecipeListPage + Header), Hono serves API+static on one port, 13 existing tests still pass
-✅ Phase 6: auth                     ← Bearer token middleware via RECING_API_KEY env var, /health public, all /api/* protected, 14 new auth tests
-✅ Phase 7: ingestion/cli            ← CLI worker loop (start + fetch commands), env-configurable, graceful shutdown, 8 new worker tests
-Phase 6: auth                       ← API key middleware on all routes
-Phase 7: ingestion/cli              ← CLI worker loop (local, calls fly.io API + llama.cpp)
-Phase 8: deploy                     ← ⚠️ Config ready — execution deferred to later
-Phase 9: migrate                    ← Local → Atlas DB migration script (hybrid dry-run)
-Phase 10: test & validate           ← Port all Java tests to Vitest, integration testing
+✅ Init. Project Setup   ← pnpm workspaces + shared TS config
+✅ Phase 0: schema       ← Zod schemas for RecipeExtraction/JobSubmission/LlmResult
+✅ Phase 1: content-reducer ← Port RecipeContentReducer + 20 tests
+✅ Phase 2: url-fetcher    ← URL fetching + SSRF protection + 133 tests
+✅ Phase 3: llm-client     ← LLM client + extraction pipeline + retry logic
+✅ Phase 4: web/api        ← Hono REST API (POST/GET/PATCH/DELETE) + 13 tests
+✅ Phase 5: web/frontend   ← React SPA (SubmitPage + RecipeListPage + Header)
+✅ Phase 6: auth           ← Bearer token middleware, 14 auth tests
+✅ Phase 7: ingestion/cli  ← Worker loop (start + fetch commands), 8 worker tests
+
+🔄 Phase 8: deploy        ← k8s manifests, Dockerfiles, Postgres setup
+🔄 Phase 9: db-migrate    ← MongoDB → Postgres data migration
+🔄 Phase 10: test & validate ← Integration testing, k8s deployment validation
 ```
 
-**Estimated effort**: ~40-60 hours of development (excludes deployment configuration and monitoring).
+**Next step:** Phase 8 — deploy to k8s with Postgres.
 
 ---
 
-## Questions & Decisions Needed
+## Changes from Previous Plan
 
-### Q1–Q5: Confirmed ✓
-- **Frontend:** React + Vite. Write from scratch, hi-fi designs as visual reference only.
-- **Auth:** API key via Bearer token. Simple middleware on all routes.
-- **Job processing:** Entirely local via ingestion CLI worker. Fly.io web app is purely data store + REST API.
-- **Real-time updates:** No polling needed. Submit → store → redirect to overview.
-- **Monorepo tooling:** pnpm workspaces.
-
-### Q6: Database migration — Hybrid approach (Option C)
-One-time script with dry-run preview: connect to local MongoDB, show summary, ask confirmation, copy to Atlas with `migratedAt` timestamp. Lives in `packages/migrate/` as a temporary utility. See [Phase 9](./migration-to-nodejs/phase-9-db-migration.md) for details.
-
-### ⚠️ Deployment execution deferred
-Fly.io config (`fly.toml`, `Dockerfile.web`) and `.env.example` are ready but deployment to fly.io / MongoDB Atlas has been **deferred**. To deploy later:
-1. Create a MongoDB Atlas cluster (free tier)
-2. Run: `ATLAS_MONGODB_URI="mongodb+srv://..." pnpm -r migrate`
-3. Run: `fly apps create recing` then `fly deploy`
-4. Set env vars on fly.io: `RECING_API_KEY`, `MONGODB_URI`, `DB_NAME`
+| Item | Old | New |
+|------|-----|-----|
+| Hosting | fly.io (public cloud) | Kubernetes (LAN cluster) |
+| Database | MongoDB Atlas | Postgres (LAN) |
+| Worker | Local CLI (outside containers) | k8s Deployment `recing-ingestion` |
+| Deployment config | fly.toml, Dockerfile.web | k8s/web.yaml, k8s/ingestion.yaml, Dockerfiles in k8s/ |

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recing-ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recing-ingestion
+  template:
+    spec:
+      containers:
+      - name: ingestion
+        image: recing/ingestion:latest
+        env:
+        - name: WEB_API_URL
+          value: "http://recing-web:80"
+        - name: LLM_ENDPOINT
+          value: "http://llama-cpp:8085/v1/chat/completions"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: recing-secrets
+              key: api-key
+        - name: LLM_MODEL
+          value: "qwen3.6"
+        - name: MAX_CONTENT_CHARS
+          value: "60000"

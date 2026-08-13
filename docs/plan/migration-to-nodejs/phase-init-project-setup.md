@@ -130,7 +130,7 @@ recing/
     │   └── src/index.ts        # stub; Phase 0 fills this in
     ├── ingestion/              # @recing/ingestion — CLI worker
     │   └── src/index.ts        # stub; Phase 7 fills this in
-    └── web/                    # @recing/web — API + UI on fly.io
+    └── web/                    # @recing/web — API + UI (k8s: web pod)
         ├── src/App.tsx         # minimal React entry
         └── vite.config.ts      # Vite config with React plugin
 ```

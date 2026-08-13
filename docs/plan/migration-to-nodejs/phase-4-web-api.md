@@ -6,23 +6,23 @@ Create the REST API layer — a pure data store with no job processing.
 ## Steps
 
 ### Step 5.1 — Project scaffolding
-- Create Express.js or Hono project with TypeScript
-- Configure MongoDB connection (native driver or Mongoose)
+- Create Hono project with TypeScript
+- Configure Postgres connection via `node-postgres` (`pg`)
 - Set up environment variable management
-- Add fly.io deployment config (`fly.toml`)
+- k8s deployment via `k8s/web.yaml` (no fly.toml)
 
 ### Step 5.2 — Job submission API
-- `POST /api/recipes` → create job with status `PENDING`, store URL in MongoDB, return `{ jobId }`
-- **No polling endpoint needed** — user flow is: submit URL → redirect to overview immediately
-- Map to MongoDB `jobs` collection:
-  - `_id` (String UUID) — primary key
-  - `status` index for filtering by processing state
+- `POST /api/recipes` → create job with status `PENDING`, store URL in Postgres, return `{ jobId }`
+- **No polling endpoint needed** — user flow is: submit URL → redirect to job page
+- Map to Postgres `jobs` table:
+  - `id` (UUID) — primary key
+  - `{ status, created_at }` index for the ingestion worker's poll query
 
 ### Step 5.3 — No server-side processing
 - **The web app does NOT process jobs.** It is purely:
-  - A read/write API for the `jobs` collection in MongoDB
+  - A read/write API for the `jobs` table in Postgres
   - A React SPA that displays data from the API
-- Job processing (fetch + LLM extraction) happens entirely locally via the ingestion CLI worker
+- Job processing (fetch + LLM extraction) happens in the separate `recing-ingestion` k8s pod
 
 ### Step 5.4 — Recipe list API
 - `GET /api/recipes` → list all completed, valid recipes (paginated)

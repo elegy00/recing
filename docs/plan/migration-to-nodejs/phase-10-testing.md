@@ -13,7 +13,7 @@ Port all existing Java tests to TypeScript and add integration testing.
 | `UrlSafetyValidatorTest.java` | `url-safety.test.ts` | Reject invalid URLs, localhost, private IPs, bad schemes |
 | `RecipeFetchServiceTest.java` | `url-fetcher.test.ts` | Redirects, content-type validation, size limits |
 | `JobSubmissionTest.java` | `job-submission.test.ts` | Job lifecycle transitions |
-| `RecipeControllerTest.java` | `recipe-controller.test.ts` | API endpoints with mock MongoDB |
+| `RecipeControllerTest.java` | `recipe-controller.test.ts` | API endpoints with mock Postgres |
 
 ### Step 10.2 — Integration test for full pipeline
 ```typescript
@@ -28,3 +28,8 @@ it('extracts recipe from URL end-to-end', async () => {
 
 ## Dependencies
 Phases 1–7 — all components need to exist before tests can be written.
+
+## k8s Deployment Validation
+- Verify pods start correctly: `kubectl get pods`
+- Verify health endpoint: `curl http://recing-web/health`
+- End-to-end: submit URL via UI, verify ingestion pod processes it, check Postgres for COMPLETED job

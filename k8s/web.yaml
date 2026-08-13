@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recing-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recing-web
+  template:
+    spec:
+      containers:
+      - name: web
+        image: recing/web:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: recing-secrets
+              key: postgres-url
+        - name: RECING_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: recing-secrets
+              key: api-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recing-web
+spec:
+  selector:
+    app: recing-web
+  ports:
+  - port: 80
+    targetPort: 3000

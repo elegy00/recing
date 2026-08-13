@@ -1,37 +1,47 @@
-# Phase 8: Deployment (fly.io + MongoDB Atlas)
+# Phase 8: Deployment (Kubernetes + Postgres)
 
 ## Goal
-Deploy the web app to fly.io and set up MongoDB Atlas.
+Deploy web + ingestion as k8s pods. One secret: Postgres URL + API key.
+
+## Architecture
+
+```
+Browser ──► Ingress → recing-web:80 → Postgres
+                                   ↕
+recing-ingestion ──► llama-cpp:8085 ──► recing-web:80
+```
 
 ## Steps
 
-### Step 9.1 — fly.io deployment config
-```toml
-app = "recing"
-primary_region = "ord"  # or closest region
+### Step 8.1 — Postgres
+External in LAN. No k8s manifest needed. Just create the `jobs` table.
 
-[build]
-dockerfile = "Dockerfile.web"
+### Step 8.2 — Dockerfiles
 
-[[services]]
-protocol = "tcp"
-internal_port = 3000
+Two minimal Alpine images:
+- `k8s/Dockerfile.web` — build Hono + React, CMD: `node dist/index.js`
+- `k8s/Dockerfile.ingestion` — build worker, CMD: `node dist/cli.js start`
 
-[env]
-NODE_ENV = "production"
+### Step 8.3 — k8s manifests
+
+Two files, two Deployments, one Service:
+- `k8s/web.yaml` — Deployment (1 replica) + Service (port 80→3000)
+- `k8s/ingestion.yaml` — Deployment (1 replica, no Service)
+
+### Step 8.4 — Ingress
+
+Optional NGINX/Traefik Ingress to expose `recing.lan`.
+
+### Step 8.5 — Deploy
+
+```bash
+docker build -t <reg>/recing/web:latest        -f k8s/Dockerfile.web .
+docker build -t <reg>/recing/ingestion:latest  -f k8s/Dockerfile.ingestion .
+kubectl create secret generic recing-secrets \
+  --from-literal=api-key="..." \
+  --from-literal=postgres-url="postgresql://..."
+kubectl apply -f k8s/web.yaml k8s/ingestion.yaml
 ```
 
-### Step 9.2 — Docker configuration
-Single Dockerfile for the web app:
-- Node.js 22 Alpine base
-- Build step with pnpm/npm workspaces
-- Copy only `packages/web` output (not ingestion — runs locally)
-
-### Step 9.3 — MongoDB Atlas setup
-- Create free-tier cluster on MongoDB Atlas
-- Configure network access (allow fly.io IP ranges)
-- Set up connection string for `MONGODB_URI` env var on fly.io
-- Existing local data can be exported/imported via `mongodump`/`mongorestore`
-
 ## Dependencies
-Phase 4 (Web API) — needs the application to be built and tested.
+Phase 7 (Ingestion Worker) — needs both pods built and tested.

@@ -1,6 +1,4 @@
-# Files excluded from fly.io build context
+# Excluded from Docker build context
 node_modules/
-packages/schema/
-packages/ingestion/
-packages/migrate/
 dist/client/
+dist/

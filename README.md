@@ -2,146 +2,73 @@
 
 Ingests recipes from URLs using a local LLM (llama.cpp). The project is a
 pnpm/TypeScript monorepo — **everything lives under [`packages/`](./packages/)**.
-(The original Java/Spring Boot prototype now sits unused in
-[`web_deprecated/`](./web_deprecated/).)
 
 ```
 recing/
 ├── packages/
 │   ├── schema/       Shared types + Zod schemas
-│   ├── web/          Hono API + React SPA (the server you run + deploy)
-│   ├── ingestion/    CLI worker — fetches URLs, calls llama.cpp
-│   └── migrate/      One-off local → Atlas migration script
-├── docker-compose.yml   Local MongoDB
-├── Dockerfile.web       Image for packages/web (fly.io)
-└── fly.toml             Deploy config
+│   ├── web/          Hono API + React SPA (k8s: web pod)
+│   ├── ingestion/    Worker — fetches URLs, calls llama.cpp (k8s: ingestion pod)
+│   └── migrate/      Postgres migration runner
+├── docker-compose.yml    Local dev: Postgres
+├── k8s/                  Kubernetes manifests (LAN deployment)
+└── fly_deploy.md         Legacy: fly.io deployment
+```
+
+## How it works
+
+```
+Browser ──► recing-web (API + SPA) ──► Postgres
+                              │
+recing-ingestion ◄────────────┘
+  polls for pending jobs
+     │
+     ├──► llama-cpp (LAN, :8085)
+     └──► POST result to recing-web
 ```
 
 ## Prerequisites
 
 - Node.js 22+ with Corepack/pnpm enabled
-- Docker / Docker Compose (for local MongoDB)
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) serving the
-  OpenAI-compatible API on port 8085
+- Docker / Docker Compose (for local Postgres)
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) on port 8085
 
-## Quick Start
-
-### 1. Install dependencies
+## Quick Start (Local Dev)
 
 ```bash
 pnpm install
+docker compose up -d        # Postgres on :5432
+cd packages/migrate && pnpm migrate:up
+cd packages/web && pnpm dev     # http://localhost:3000
+cd packages/ingestion && pnpm dev:start
 ```
 
-### 2. Start MongoDB
+## Build & Deploy (k8s)
 
 ```bash
-docker compose up -d        # MongoDB on localhost:27017 (volume: recing-mongo-data)
+docker build -t <reg>/recing/web:latest        -f k8s/Dockerfile.web .
+docker build -t <reg>/recing/ingestion:latest  -f k8s/Dockerfile.ingestion .
+docker push <reg>/recing/web:latest
+docker push <reg>/recing/ingestion:latest
+kubectl create secret generic recing-secrets --from-literal=postgres-url="..." --from-literal=api-key="..."
+kubectl apply -f k8s/
 ```
 
-Stop it later with `docker compose down` (or `down -v` to also drop the volume).
-
-### 3. Start llama.cpp
-
-```bash
-./llama-server --model <path-to-model.gguf> --port 8085
-```
-
-### 4. Run the web app (API + SPA)
-
-```bash
-cd packages/web
-pnpm dev                    # Vite + Hono on http://localhost:3000
-```
-
-Open [http://localhost:3000](http://localhost:3000) and submit a recipe URL.
-The submission is stored as a PENDING job for the worker to process.
-
-### 5. Run the ingestion worker
-
-The worker polls the web API for pending jobs and processes them via llama.cpp.
-
-First, configure your `.env` file (copy from `.env.example` and adjust):
-
-```bash
-cp .env.example .env
-```
-
-Then run:
-
-```bash
-cd packages/ingestion
-
-# Start the polling loop (loads .env automatically)
-pnpm dev:start
-
-# Or run a single-shot extraction (for testing/debugging)
-pnpm dev:fetch "https://example.com/my-recipe"
-```
-
-Worker environment variables:
-
-| Variable | Default | Notes |
-|---|---|---|
-| `API_KEY` | *(required)* | Bearer token — must match the web API key |
-| `WEB_API_URL` | `http://localhost:3000` | Web API base URL |
-| `LLM_ENDPOINT` | `http://localhost:8085/v1/chat/completions` | llama.cpp endpoint |
-| `LLM_MODEL` | `qwen3.6` | Model name |
-| `MAX_CONTENT_CHARS` | `60000` | Max page content sent to the LLM |
-| `POLL_INTERVAL_MS` | `5000` | Delay between polls |
-
-> If `RECING_API_KEY` is unset on the web side, auth is disabled and any
-> `API_KEY` value is accepted.
+See [`k8s/README.md`](./k8s/README.md) for full instructions.
 
 ## Configuration
 
-Copy and adjust environment variables for the web app:
-
-```bash
-cp .env.example .env.local
-```
-
-| Variable | Default |
-|---|---|
-| `MONGODB_URI` | `mongodb://localhost:27017/recing` |
-| `DB_NAME` | `recing` |
-| `RECING_API_KEY` | *(none — auth disabled when empty)* |
-| `PORT` | `3000` |
+| Variable | Default | Notes |
+|---|---|---|
+| `POSTGRES_URL` | `postgresql://recing:recing@localhost:5432/recing` | Postgres connection |
+| `RECING_API_KEY` | *(none — auth disabled when empty)* | Bearer token for worker |
+| `PORT` | `3000` | Web API port |
+| `WEB_API_URL` | `http://localhost:3000` | Worker → web API URL |
+| `LLM_ENDPOINT` | `http://localhost:8085/v1/chat/completions` | llama.cpp endpoint |
+| `POLL_INTERVAL_MS` | `5000` | Worker poll interval |
 
 ## Tests
 
 ```bash
-pnpm test          # run every package's test suite
-pnpm -r test       # same, explicit workspace run
+pnpm test          # all packages
 ```
-
-## Build & Deploy
-
-```bash
-# Local production build of the web app
-cd packages/web
-pnpm run build     # Vite client + TSC server
-pnpm start         # Hono serving API + static files on :3000
-```
-
-Deploy `packages/web` to fly.io (image built by `Dockerfile.web`):
-
-```bash
-fly apps create recing --org <your-org>
-fly secrets set RECING_API_KEY="your-secret-key" MONGODB_URI="$ATLAS_MONGODB_URI"
-fly deploy
-```
-
-The ingestion worker runs **locally** — it polls the deployed API for pending
-jobs, runs them through local llama.cpp, and posts results back:
-
-```
-  Fly.io App (Hono + React) ──REST──► MongoDB Atlas
-          ▲
-          │  GET  /recipes?status=PENDING
-          │  POST /api/recipes/:id/result
-          ▼
-  Local Worker (llama.cpp :8085)
-```
-
-See [`packages/README.md`](./packages/README.md) for deeper monorepo and
-deployment details.

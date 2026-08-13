@@ -3,9 +3,9 @@
 ```
 packages/
 ├── schema/       Shared types + Zod schemas
-├── web/          Hono API + React SPA (fly.io)
-├── ingestion/    CLI worker — fetches URLs, calls llama.cpp
-└── migrate/      One-time local → Atlas migration script
+├── web/          Hono API + React SPA (k8s: web pod)
+├── ingestion/    Worker — fetches URLs, calls llama.cpp (k8s: ingestion pod)
+└── migrate/      Postgres migration runner (node-pg-migrate)
 ```
 
 ## How to Run Locally
@@ -13,35 +13,29 @@ packages/
 ### Prerequisites
 
 - Node.js 22+ (Corepack enabled for pnpm)
-- Docker / Docker Compose (for local MongoDB — see below)
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) serving the OpenAI-compatible API on port 8085
+- Docker / Docker Compose (for local Postgres)
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) serving the
+  OpenAI-compatible API on port 8085
 
-### Run MongoDB with Docker Compose
-
-The app expects MongoDB at `mongodb://localhost:27017`. Start it from the project root:
+### Run Postgres with Docker Compose
 
 ```bash
-docker compose up -d
+docker compose up -d    # Postgres at localhost:5432 (volume: recing-pg-data)
 ```
-
-See [../docker-compose.yml](../docker-compose.yml) for full configuration. Volume `recing-mongo-data` persists data across restarts.
 
 **Useful commands:**
 
 ```bash
-docker compose logs mongo                         # view startup
-docker compose restart mongo                      # restart (preserves data)
-docker exec -it recing-mongo mongosh recing       # mongo shell
-docker compose down                               # stop + remove containers
-docker compose down -v                            # stop, remove containers AND volumes
+docker compose logs postgres
+docker compose restart postgres
+docker compose exec postgres psql -U recing -d recing  # psql shell
+docker compose down                                    # stop + remove containers
+docker compose down -v                                 # stop + remove volumes
 ```
 
 ### Setup
 
-### Setup
-
 ```bash
-cd /Users/chsa/dev/recing
 pnpm install
 ```
 
@@ -53,7 +47,7 @@ cp .env.example .env.local   # optional — defaults listed below
 
 | Variable | Default |
 |---|---|
-| `MONGODB_URI` | `mongodb://localhost:27017/recing` |
+| `POSTGRES_URL` | `postgresql://recing:recing@localhost:5432/recing` |
 | `DB_NAME` | `recing` |
 | `RECING_API_KEY` | *(none — auth disabled when empty)* |
 | `PORT` | `3000` |
@@ -65,7 +59,7 @@ cd packages/web
 pnpm dev          # Vite + Hono on http://localhost:3000
 ```
 
-In production mode (after build):
+Production mode (after build):
 
 ```bash
 pnpm run build    # builds client (Vite) + server (TSC)
@@ -74,67 +68,31 @@ pnpm start        # runs Hono serving API + static files
 
 ### Run the Ingestion Worker
 
-The worker polls for pending jobs and processes them through llama.cpp:
-
 ```bash
 cd packages/ingestion
 
 # Start the polling loop
-tsx src/cli.ts start
+pnpm dev:start
 
 # Or extract a single URL (for testing)
-API_KEY=secret tsx src/cli.ts fetch "https://example.com/my-recipe"
+pnpm dev:fetch "https://example.com/my-recipe"
 ```
-
-Required env vars for the worker:
-
-| Variable | Default |
-|---|---|
-| `API_KEY` | *(required — matches web API key)* |
-| `WEB_API_URL` | `http://localhost:3000` |
-| `LLM_ENDPOINT` | `http://localhost:8085/v1/chat/completions` |
-| `LLM_MODEL` | `qwen3.6` |
 
 ### Run All Tests
 
 ```bash
-pnpm test          # all packages (230+ tests)
-pnpm -r test       # same as above, explicit workspace run
+pnpm test          # all packages
+pnpm -r test       # same, explicit workspace run
 ```
 
 ---
 
-## How to Deploy to the Cloud
+## Kubernetes Deployment
 
-### MongoDB Atlas
+See [../k8s/README.md](../k8s/README.md) for full instructions.
 
-Create a free-tier cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas):
+Two k8s Deployments:
+- `recing-web` — Hono API + React SPA
+- `recing-ingestion` — background worker (polls for PENDING jobs)
 
-```bash
-export ATLAS_MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/recing?retryWrites=true&w=majority"
-```
-
-Migrate existing local data (if any): `ATLAS_MONGODB_URI="$ATLAS_MONGODB_URI" pnpm -r migrate`.
-
-### Deploy to fly.io
-
-```bash
-fly apps create recing --org <your-org>
-fly secrets set RECING_API_KEY="your-secret-key" MONGODB_URI="$ATLAS_MONGODB_URI"
-fly deploy
-```
-
-`Dockerfile.web` builds a minimal image serving the Hono API + React SPA on port 3000. Ingestion runs locally.
-
-### Architecture After Deployment
-
-```
-  Fly.io App (Hono + React) ──REST──► MongoDB Atlas
-          ▲
-          │ GET /recipes?status=PENDING
-          │ POST /api/recipes/:id/result
-          ▼
-  Local Worker (llama.cpp :8085)
-```
-
-The ingestion worker runs **locally** — polls the fly.io API for pending jobs, processes via local llama.cpp, posts results back.
+Single Postgres instance shared by both pods.
