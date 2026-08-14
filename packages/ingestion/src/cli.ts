@@ -1,32 +1,21 @@
 #!/usr/bin/env node
 
 import { runWorker } from "./worker.js";
+import { closeDb } from "./db.js";
 import { fetchUrl } from "./url-fetcher.js";
 import { extractRecipe } from "./llm-extraction.js";
-import { submitJob, postResult, reportFailure } from "./api-client.js";
-import { LlmErrorCode } from "@recing/schema";
 
 // ─── Configuration (env vars) ────────────────────────────────────────────────
 
-function getEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Required environment variable ${name} is not set`);
-  return value;
-}
-
 interface CliConfig {
-  webApiUrl: string;
-  apiKey: string;
-  endpoint: string; // llama.cpp endpoint (matches ExtractionConfig.endpoint)
-  model: string;    // model name (matches ExtractionConfig.model)
+  endpoint: string;
+  model: string;
   maxContentChars: number;
   pollIntervalMs: number;
 }
 
 function loadConfig(): CliConfig {
   return {
-    webApiUrl: process.env.WEB_API_URL ?? "http://localhost:3000",
-    apiKey: getEnv("API_KEY"),
     endpoint: process.env.LLM_ENDPOINT ?? "http://localhost:8085/v1/chat/completions",
     model: process.env.LLM_MODEL ?? "qwen3.6",
     maxContentChars: Number(process.env.MAX_CONTENT_CHARS) || 60_000,
@@ -36,11 +25,10 @@ function loadConfig(): CliConfig {
 
 // ─── Commands ────────────────────────────────────────────────────────────────
 
-async function cmdStart(_config: CliConfig): Promise<void> {
+async function cmdStart(): Promise<void> {
   const config = loadConfig();
   console.warn("Recing Ingestion Worker — starting\n");
 
-  // Handle graceful shutdown on SIGINT/SIGTERM
   let abortController: AbortController | null = null;
   let shuttingDown = false;
 
@@ -54,14 +42,7 @@ async function cmdStart(_config: CliConfig): Promise<void> {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-  abortController = runWorker({
-    baseUrl: config.webApiUrl,
-    apiKey: config.apiKey,
-    endpoint: config.endpoint,
-    model: config.model,
-    maxContentChars: config.maxContentChars,
-    pollIntervalMs: config.pollIntervalMs,
-  });
+  abortController = runWorker(config);
 
   // Keep alive until shutdown
   await new Promise<void>((resolve) => {
@@ -72,34 +53,50 @@ async function cmdStart(_config: CliConfig): Promise<void> {
     check();
   });
 
+  await closeDb();
   process.exit(0);
 }
 
-async function cmdFetch(config: CliConfig, url: string): Promise<void> {
+async function cmdFetch(url: string): Promise<void> {
   console.warn(`Recing Ingestion — single-shot fetch\n`);
   console.warn(`URL: ${url}`);
 
-  // Step 1: Submit job to web API
-  const jobId = await submitJob({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, url);
-  console.warn(`Submitted as job ${jobId}\n`);
+  const config = loadConfig();
 
-  // Step 2: Fetch content (throws RecipeFetchException on failure)
+  // Step 1: Submit job to database
+  const { getDb } = await import("./db.js");
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await db.query(
+    "INSERT INTO jobs (id, url, status, created_at, updated_at, result, error) VALUES ($1, $2, 'PENDING', $3, $3, NULL, NULL)",
+    [id, url, now]
+  );
+  console.warn(`Submitted as job ${id}\n`);
+
+  // Step 2: Fetch content
   console.warn("Fetching URL...");
   const fetchResult = await fetchUrl(url);
   console.warn(`Fetched ${fetchResult.finalUrl} (${fetchResult.contentType}, ${fetchResult.body.length} chars)`);
 
   // Step 3: Extract recipe via LLM
   console.warn("Sending to LLM...");
-  const extraction = await extractRecipe(
-    { endpoint: config.endpoint, model: config.model, maxContentChars: config.maxContentChars },
-    { url: fetchResult.finalUrl, contentType: fetchResult.contentType, title: null, body: fetchResult.body }
+  const extraction = await extractRecipe(config, {
+    url: fetchResult.finalUrl,
+    contentType: fetchResult.contentType,
+    title: fetchResult.title ?? null,
+    body: fetchResult.body,
+  });
+
+  // Step 4: Save result
+  await db.query(
+    "UPDATE jobs SET status = 'COMPLETED', result = $2, updated_at = $3 WHERE id = $1",
+    [id, JSON.stringify(extraction.extraction), new Date().toISOString()]
   );
 
-  // Step 4: Post result back to web API
-  console.warn("Posting result...");
-  await postResult({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, jobId, extraction.extraction);
-
-  console.warn(`\n✅ Done — job ${jobId} completed`);
+  await closeDb();
+  console.warn(`\n✅ Done — job ${id} completed`);
 }
 
 // ─── Entry Point ─────────────────────────────────────────────────────────────
@@ -116,20 +113,17 @@ async function main(): Promise<void> {
     console.error("  fetch <url>    Single-shot extraction (for testing/debugging)");
     console.error("");
     console.error("Environment variables:");
-    console.error("  WEB_API_URL      Web API base URL (default: http://localhost:3000)");
-    console.error("  API_KEY          Bearer token for authentication (required)");
-    console.error("  LLM_ENDPOINT     llama.cpp endpoint (default: http://localhost:8085/v1/chat/completions)");
-    console.error("  LLM_MODEL        Model name (default: qwen3.6)");
+    console.error("  POSTGRES_URL   Database connection string (default: local recing DB)");
+    console.error("  LLM_ENDPOINT   llama.cpp endpoint (default: http://localhost:8085/v1/chat/completions)");
+    console.error("  LLM_MODEL      Model name (default: qwen3.6)");
     console.error("  MAX_CONTENT_CHARS Max page content size (default: 60000)");
     console.error("  POLL_INTERVAL_MS Seconds between polls (default: 5000)");
     process.exit(1);
   }
 
-  const config = loadConfig();
-
   switch (command) {
     case "start":
-      await cmdStart(config);
+      await cmdStart();
       break;
     case "fetch":
       if (args.length < 2) {
@@ -137,21 +131,10 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       try {
-        await cmdFetch(config, args[1]);
+        await cmdFetch(args[1]);
       } catch (error) {
         console.error(`\n❌ Failed: ${error}`);
-
-        // Report failure to web API if we have a jobId context
-        const jobIdMatch = String(error).match(/job ([a-f0-9-]+)/i);
-        if (jobIdMatch && command === "fetch") {
-          try {
-            await reportFailure({ baseUrl: config.webApiUrl, apiKey: config.apiKey }, jobIdMatch[1], LlmErrorCode.LLM_FAILED, String(error));
-            console.error("(Reported failure to web API)");
-          } catch {
-            // Best effort — don't fail on report error
-          }
-        }
-
+        await closeDb();
         process.exit(1);
       }
       break;

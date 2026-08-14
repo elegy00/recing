@@ -164,7 +164,7 @@ async function extractWithRetry(
       }
 
       // Timeout or network errors — retryable once
-      if ("name" in error && error.name === "AbortError") {
+      if ((error as Error & { name?: string }).name === "AbortError") {
         console.warn(`LLM request timed out (attempt ${attempt}/${MAX_ATTEMPTS})`);
         if (attempt < MAX_ATTEMPTS) {
           await sleep(RETRY_DELAY_MS);
@@ -176,10 +176,20 @@ async function extractWithRetry(
         );
       }
 
-      // Connection refused → LLM not running (grill-me #8)
+      // Log detailed error context for debugging
+      const errObj = error as Error & { cause?: unknown };
       const errStr = String(error);
+      const errCause = errObj.cause ? String(errObj.cause) : null;
+      const errCode = (errObj.cause as NodeJS.ErrnoException & { code?: string })?.code ?? null;
+      console.warn(`LLM request failed on attempt ${attempt}: ${errStr}`);
+      if (errCode) console.warn(`  underlying code: ${errCode}`);
+      if (errCause && errCause !== errStr) console.warn(`  cause: ${truncate(errCause, 500)}`);
+      if (errObj.stack) console.warn(`  stack: ${errObj.stack.split("\n").slice(1, 3).join("\n          ")}`);
+
+      // Connection refused → LLM not running (grill-me #8)
       if (
         errStr.includes("ECONNREFUSED") ||
+        errCode === "ECONNREFUSED" ||
         errStr.toLowerCase().includes("connection refused")
       ) {
         console.warn(`LLM endpoint unreachable: ${truncate(errStr, 200)}`);
@@ -199,7 +209,7 @@ async function extractWithRetry(
       throw new LlmExtractionError(
         schema.LlmErrorCode.LLM_FAILED,
         "The extractor was unable to produce a valid response.",
-        truncate(errStr, 300)
+        errStr
       );
     }
   }

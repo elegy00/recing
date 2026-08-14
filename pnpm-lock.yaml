@@ -20,10 +20,16 @@ importers:
       '@recing/schema':
         specifier: workspace:*
         version: link:../schema
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
     devDependencies:
       '@types/node':
         specifier: ^25.9.2
         version: 25.9.2
+      '@types/pg':
+        specifier: ^8.21.0
+        version: 8.21.0
       tsx:
         specifier: ^4.20.3
         version: 4.22.4

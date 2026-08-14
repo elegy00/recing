@@ -1,17 +1,12 @@
+import { getDb, closeDb } from "./db.js";
 import { fetchUrl } from "./url-fetcher.js";
 import { RecipeFetchException } from "./recipe-fetch-exception.js";
 import { extractRecipe, type ExtractionConfig, LlmExtractionError } from "./llm-extraction.js";
-import {
-  fetchPendingJobs,
-  postResult,
-  reportFailure,
-  type ApiClientConfig,
-  type WebJob,
-} from "./api-client.js";
 import type { RecipeExtraction } from "@recing/schema";
+import type { Pool } from "pg";
 
 /** Configuration for the worker loop. */
-export interface WorkerConfig extends ApiClientConfig, ExtractionConfig {
+export interface WorkerConfig extends ExtractionConfig {
   /** Milliseconds between polling cycles (default: 5000) */
   pollIntervalMs?: number;
 }
@@ -19,21 +14,30 @@ export interface WorkerConfig extends ApiClientConfig, ExtractionConfig {
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 
 /** Result of processing a single job. */
-export interface JobResult {
+interface JobResult {
   jobId: string;
   url: string;
   success: boolean;
   error?: string;
 }
 
+/** Pending job from the database. */
+interface PendingJob {
+  id: string;
+  url: string;
+}
+
 /** Process a single pending job through the full pipeline (fetch → reduce → LLM). */
-async function processJob(config: WorkerConfig, job: WebJob): Promise<JobResult> {
-  const { _id: jobId, url } = job;
+async function processJob(db: Pool, config: WorkerConfig, job: PendingJob): Promise<JobResult> {
+  const { id: jobId, url } = job;
 
   try {
+    // Mark as processing
+    await db.query("UPDATE jobs SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1 AND status = 'PENDING'", [jobId]);
+
     // Step 1: Fetch the URL content
     console.warn(`[job:${jobId}] Fetching ${url}`);
-    const fetchResult = await fetchUrl(url); // throws RecipeFetchException on failure
+    const fetchResult = await fetchUrl(url);
 
     // Step 2: Extract recipe via LLM
     console.warn(`[job:${jobId}] Extracting recipe from ${fetchResult.finalUrl} (${fetchResult.contentType})`);
@@ -44,42 +48,45 @@ async function processJob(config: WorkerConfig, job: WebJob): Promise<JobResult>
       body: fetchResult.body,
     });
 
-    // Step 3: Post result back to web API
-    console.warn(`[job:${jobId}] Recipe extracted successfully`);
-    await postResult(config, jobId, extraction.extraction, {
-      model: config.model,
-      endpoint: config.endpoint,
-      tokensIn: extraction.metadata.promptTokens,
-      tokensOut: extraction.metadata.completionTokens,
-    });
+    // Step 3: Save result
+    const now = new Date().toISOString();
+    await db.query(
+      "UPDATE jobs SET status = 'COMPLETED', result = $2, error = NULL, updated_at = $3 WHERE id = $1",
+      [jobId, JSON.stringify(extraction.extraction), now]
+    );
 
+    console.warn(`[job:${jobId}] Recipe extracted successfully`);
     return { jobId, url, success: true };
   } catch (error) {
-    let errorCode: string = "LLM_FAILED";
+    let errorCode = "UNKNOWN";
     let errorMessage = String(error);
 
     if (error instanceof RecipeFetchException) {
       errorCode = `FETCH_${error.code}`;
-      errorMessage = error.message; // already user-friendly from schema messages
+      errorMessage = error.message;
     } else if (error instanceof LlmExtractionError) {
       errorCode = error.code;
       errorMessage = error.getUserMessage();
-    } else if (error instanceof Error && "statusCode" in error) {
-      // ApiClientError from post/report
-      const e = error as { statusCode: number };
-      errorMessage = `API error ${e.statusCode}: ${errorMessage}`;
     }
 
     console.warn(`[job:${jobId}] Failed (${errorCode}): ${errorMessage}`);
 
-    try {
-      await reportFailure(config, jobId, errorCode, errorMessage);
-    } catch (reportError) {
-      console.error(`[job:${jobId}] Also failed to report error: ${reportError}`);
-    }
+    // Save error
+    await db.query(
+      "UPDATE jobs SET status = 'FAILED', result = NULL, error = $2, updated_at = NOW() WHERE id = $1",
+      [jobId, errorMessage]
+    );
 
     return { jobId, url, success: false, error: `${errorCode}: ${errorMessage}` };
   }
+}
+
+/** Fetch all pending jobs from the database. */
+async function fetchPendingJobs(db: Pool): Promise<PendingJob[]> {
+  const res = await db.query<PendingJob>(
+    "SELECT id, url FROM jobs WHERE status = 'PENDING' ORDER BY created_at ASC"
+  );
+  return res.rows;
 }
 
 /** Run the worker loop. Returns an AbortController for graceful shutdown. */
@@ -87,32 +94,30 @@ export function runWorker(config: WorkerConfig): AbortController {
   const controller = new AbortController();
   const signal = controller.signal;
   const pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const db = getDb();
 
-  console.warn(`[worker] Starting — polling ${config.baseUrl}/api/recipes?status=PENDING every ${pollIntervalMs}ms`);
+  console.warn(`[worker] Starting — polling for PENDING jobs every ${pollIntervalMs}ms`);
   console.warn(`[worker] LLM endpoint: ${config.endpoint} (model: ${config.model})`);
 
-  let running = true;
+  let shuttingDown = false;
 
   async function tick(): Promise<void> {
     while (!signal.aborted) {
       try {
-        // Fetch pending jobs
-        const pendingJobs = await fetchPendingJobs(config);
+        const pendingJobs = await fetchPendingJobs(db);
 
         if (pendingJobs.length === 0) {
           console.warn("[worker] No pending jobs — sleeping");
         } else {
           console.warn(`[worker] Found ${pendingJobs.length} pending job(s)`);
 
-          // Process each job sequentially (single-threaded, matches Java behavior)
           for (const job of pendingJobs) {
             if (signal.aborted) break;
-            const result = await processJob(config, job);
+            const result = await processJob(db, config, job);
             console.warn(`[worker] Job ${result.jobId}: ${result.success ? "✅ done" : `❌ failed — ${result.error}`}`);
           }
         }
 
-        // Wait for next poll cycle (only if not aborted)
         if (!signal.aborted) {
           await sleep(pollIntervalMs);
         }
@@ -128,7 +133,7 @@ export function runWorker(config: WorkerConfig): AbortController {
   }
 
   // Start the loop in background
-  tick().catch(() => {}); // ignore abort errors
+  tick().catch(() => {});
 
   return controller;
 }

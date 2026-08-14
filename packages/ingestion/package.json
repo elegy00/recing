@@ -15,16 +15,18 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "dev:start": "[ -f ../../.env ] && . ../../.env; pnpm exec tsx src/cli.ts start",
-    "dev:fetch": "[ -f ../../.env ] && . ../../.env; pnpm exec tsx src/cli.ts fetch",
+    "dev:start": "pnpm exec tsx src/cli.ts start",
+    "dev:fetch": "pnpm exec tsx src/cli.ts fetch",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@recing/schema": "workspace:*"
+    "@recing/schema": "workspace:*",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
+    "@types/pg": "^8.21.0",
     "tsx": "^4.20.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

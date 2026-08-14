@@ -53,8 +53,8 @@ if (isDev) {
           headers: req.headers as HeadersInit,
           body: bodyText,
         });
-        // Inject the Postgres pool as a binding
-        const response = await (honoApp as { fetch: (r: Request, e?: unknown, env?: { DATABASE_POOL: pg.Pool }) => Promise<Response> }).fetch(hReq, undefined, { DATABASE_POOL: pool });
+        // Inject the Postgres pool as a binding (Hono.fetch signature: fetch(req, env, executionCtx))
+        const response = await (honoApp as { fetch: (r: Request, env?: { DATABASE_POOL: pg.Pool }) => Promise<Response> }).fetch(hReq, { DATABASE_POOL: pool });
         res.writeHead(response.status, Object.fromEntries(response.headers));
         if (response.body) {
           for await (const chunk of response.body) res.write(Buffer.from(chunk as Uint8Array));

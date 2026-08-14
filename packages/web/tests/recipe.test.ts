@@ -115,41 +115,6 @@ describe("GET /api/recipes/:id", () => {
   });
 });
 
-// ─── PATCH /api/recipes/:id/result ──────────────────────────────────────────
-
-describe("PATCH /api/recipes/:id/result", () => {
-  it("updates job to COMPLETED with result", async () => {
-    const res1 = await req("POST", "/api/recipes", { url: "http://example.com/test" });
-    const jobId = (await json<{ jobId: string }>(res1)).jobId;
-    
-    const res = await req("PATCH", `/api/recipes/${jobId}/result`, {
-      result: { status: "extracted", recipeName: "Test", ingredients: [{ name: "sugar" }], instructions: [{ text: "Mix" }] },
-      isValid: true,
-    });
-    expect(res.status).toBe(200);
-    
-    const rows = await query<{ status: string; result: unknown }>("SELECT status, result FROM jobs WHERE id = $1", [jobId]);
-    expect(rows[0].status).toBe("COMPLETED");
-    expect((rows[0].result as Record<string, unknown>).recipeName).toBe("Test");
-  });
-
-  it("sets FAILED status with error", async () => {
-    const res1 = await req("POST", "/api/recipes", { url: "http://example.com/test2" });
-    const jobId = (await json<{ jobId: string }>(res1)).jobId;
-    
-    await req("PATCH", `/api/recipes/${jobId}/result`, { isValid: false, error: "LLM unavailable" });
-    
-    const rows = await query<{ status: string; error: string }>("SELECT status, error FROM jobs WHERE id = $1", [jobId]);
-    expect(rows[0].status).toBe("FAILED");
-    expect(rows[0].error).toBe("LLM unavailable");
-  });
-
-  it("returns 404 for unknown job", async () => {
-    const res = await req("PATCH", "/api/recipes/nonexistent/result", {});
-    expect(res.status).toBe(404);
-  });
-});
-
 // ─── DELETE /api/recipes/:id ────────────────────────────────────────────────
 
 describe("DELETE /api/recipes/:id", () => {
@@ -170,32 +135,70 @@ describe("DELETE /api/recipes/:id", () => {
   });
 });
 
-// ─── PATCH /api/recipes/:id/retry ────────────────────────────────────────────
+// ─── PATCH /api/recipes/:id/retry ─────────────────────────────────────────────
 
 describe("PATCH /api/recipes/:id/retry", () => {
-  it("moves FAILED → PENDING, clears result and error", async () => {
-    const row = await queryOne<{ id: string }>(
-      "INSERT INTO jobs (id, url, status, result, error) VALUES (gen_random_uuid(), $1, $2, $3, $4) RETURNING id",
-      ["http://a.com", "FAILED", "{}", "Timeout"]
+  it("resets a FAILED job to PENDING and clears result/error", async () => {
+    const jobId = crypto.randomUUID();
+    await query(
+      "INSERT INTO jobs (id, url, status, result, error) VALUES ($1, $2, $3, $4, $5)",
+      [jobId, "http://example.com/recipe", "FAILED", '{"recipeName":"Test"}', "Something went wrong"]
     );
-    const res = await req("PATCH", `/api/recipes/${row?.id}/retry`);
-    expect(res.status).toBe(200);
-    
-    const updated = await query<{ status: string; result: unknown; error: string }>("SELECT status, result, error FROM jobs WHERE id = $1", [row?.id]);
-    expect(updated[0].status).toBe("PENDING");
-    expect(updated[0].result).toBe(null);
-    expect(updated[0].error).toBe(null);
-  });
 
-  it("returns 404 for non-FAILED job", async () => {
-    await query("INSERT INTO jobs (id, url, status) VALUES (gen_random_uuid(), $1, $2)", ["http://a.com", "PENDING"]);
-    const res = await req("PATCH", "/api/recipes/00000000-0000-0000-0000-000000000000/retry");
-    expect(res.status).toBe(404);
+    const res = await req("PATCH", `/api/recipes/${jobId}/retry`);
+    expect(res.status).toBe(200);
+
+    const job = await queryOne<{ status: string; result: unknown; error: unknown }>(
+      "SELECT status, result, error FROM jobs WHERE id = $1", [jobId]
+    );
+    expect(job?.status).toBe("PENDING");
+    expect(job?.result).toBeNull();
+    expect(job?.error).toBeNull();
   });
 
   it("returns 404 for unknown job", async () => {
-    const res = await req("PATCH", "/api/recipes/nonexistent/retry");
+    const res = await req("PATCH", "/api/recipes/nonexistent-id/retry");
     expect(res.status).toBe(404);
+  });
+
+  it("resets a PENDING job back to PENDING (idempotent)", async () => {
+    const jobId = crypto.randomUUID();
+    await query(
+      "INSERT INTO jobs (id, url, status) VALUES ($1, $2, $3)",
+      [jobId, "http://example.com/recipe", "PENDING"]
+    );
+
+    const res = await req("PATCH", `/api/recipes/${jobId}/retry`);
+    expect(res.status).toBe(200);
+
+    const job = await queryOne<{ status: string }>("SELECT status FROM jobs WHERE id = $1", [jobId]);
+    expect(job?.status).toBe("PENDING");
+  });
+});
+
+// ─── _id field in responses ──────────────────────────────────────────────────
+// Database columns use "id" but the frontend expects "_id". This must be mapped.
+
+describe("API responses use _id not id", () => {
+  it("GET /api/recipes returns _id on recipe objects", async () => {
+    const row = await queryOne<{ id: string }>(
+      "INSERT INTO jobs (id, url, status, result) VALUES (gen_random_uuid(), $1, $2, $3) RETURNING id",
+      ["http://a.com", "COMPLETED", '{"status":"extracted","recipeName":"A","ingredients":[{"name":"flour"}],"instructions":[{"text":"Mix"}]}']
+    );
+    const res = await req("GET", `/api/recipes/${row?.id}`);
+    const data = await json<{ recipe: Record<string, unknown> }>(res);
+    expect(data.recipe._id).toBeDefined();
+    expect(data.recipe.id).toBeUndefined();
+  });
+
+  it("GET /api/recipes?status=PENDING returns _id on job objects", async () => {
+    const jobId = crypto.randomUUID();
+    await query("INSERT INTO jobs (id, url, status) VALUES ($1, $2, $3)", [jobId, "http://a.com", "PENDING"]);
+    const res = await req("GET", "/api/recipes?status=PENDING");
+    const data = await json<{ recipes: Record<string, unknown>[] }>(res);
+    expect(data.recipes.length).toBe(1);
+    expect(data.recipes[0]._id).toBeDefined();
+    expect(data.recipes[0].id).toBeUndefined();
   });
 });
 
