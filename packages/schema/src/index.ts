@@ -11,6 +11,9 @@ export { parseRecipeExtraction, isValid, isUnusable, createEmptyRecipeExtraction
 export { validateJobSubmission } from "./job-submission.js";
 export { validateMetadata, tokensPerSecond } from "./llm-result.js";
 
+// LLM JSON Schema (generated from Zod — see package.json gen-json-schema script)
+export { default as recipeExtractionJsonSchema } from "./recipe-extraction-schema.js";
+
 // Errors
 export {
   AppError,

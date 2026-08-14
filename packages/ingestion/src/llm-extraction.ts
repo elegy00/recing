@@ -89,8 +89,8 @@ export async function extractRecipe(
   const systemPrompt = buildSystemPrompt(SCHEMA_VERSION);
   const userPrompt = buildUserPrompt(input.url, input.contentType, reduced.truncated, input.title, reduced.text);
 
-  // Load the JSON schema for response_format (inline)
-  const schemaJson = await loadRecipeExtractionSchema();
+  // Use the JSON schema from @recing/schema for response_format
+  const schemaJson = schema.recipeExtractionJsonSchema;
   const requestBody = buildRequest(config.model ?? "qwen3.6", systemPrompt, userPrompt, schemaJson);
 
   // Step 3: Send and parse with retry loop
@@ -298,15 +298,6 @@ function parseResponse(
   console.warn(`LLM result: ${JSON.stringify(parsedResult)} [${JSON.stringify(metadata)}]`);
 
   return { extraction: parsedResult, metadata };
-}
-
-/** Loads the recipe-extraction JSON schema for response_format.json_schema. */
-async function loadRecipeExtractionSchema(): Promise<Record<string, unknown> | undefined> {
-  // The JSON schema is used by the OpenAI-compatible json_schema response_format.
-  // Loading from a static file isn't available in this monorepo setup.
-  // We return undefined — validation still applies post-parse via Zod.
-  console.warn("JSON schema not embedded — skipping response_format.json_schema (validation still applies post-parse)");
-  return undefined;
 }
 
 /** Removes markdown ```json ... ``` or ``` ... ``` wrappers from model output. */
