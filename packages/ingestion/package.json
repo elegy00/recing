@@ -15,8 +15,8 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "dev:start": "set -a && source ../../.env && set +a && pnpm exec tsx src/cli.ts start",
-    "dev:fetch": "set -a && source ../../.env && set +a && pnpm exec tsx src/cli.ts fetch",
+    "dev:start": "[ -f ../../.env ] && . ../../.env; pnpm exec tsx src/cli.ts start",
+    "dev:fetch": "[ -f ../../.env ] && . ../../.env; pnpm exec tsx src/cli.ts fetch",
     "test": "vitest run",
     "test:watch": "vitest"
   },

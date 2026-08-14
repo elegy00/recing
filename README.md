@@ -1,18 +1,20 @@
 # Recipe Ingestor
 
-Ingests recipes from URLs using a local LLM (llama.cpp). The project is a
-pnpm/TypeScript monorepo — **everything lives under [`packages/`](./packages/)**.
+Ingests recipes from URLs using a local LLM (llama.cpp). A pnpm/TypeScript monorepo — everything under [`packages/`](./packages/).
 
 ```
 recing/
 ├── packages/
 │   ├── schema/       Shared types + Zod schemas
-│   ├── web/          Hono API + React SPA (k8s: web pod)
-│   ├── ingestion/    Worker — fetches URLs, calls llama.cpp (k8s: ingestion pod)
-│   └── migrate/      Postgres migration runner
-├── docker-compose.yml    Local dev: Postgres
-├── k8s/                  Kubernetes manifests (LAN deployment)
-└── fly_deploy.md         Legacy: fly.io deployment
+│   ├── web/          Hono API + React SPA
+│   ├── ingestion/    Worker — fetches URLs, calls llama.cpp
+│   └── migrate/      Postgres migrations
+├── docker-compose.yml    Local Postgres
+├── k8s/                  k3s deployment manifests
+├── .github/workflows/    CI/CD (build, test, publish images)
+└── docs/
+    ├── dev-local.md      Local development guide
+    └── deploy-k3s.md     k3s deployment guide
 ```
 
 ## How it works
@@ -21,40 +23,33 @@ recing/
 Browser ──► recing-web (API + SPA) ──► Postgres
                               │
 recing-ingestion ◄────────────┘
-  polls for pending jobs
      │
      ├──► llama-cpp (LAN, :8085)
      └──► POST result to recing-web
 ```
 
-## Prerequisites
-
-- Node.js 22+ with Corepack/pnpm enabled
-- Docker / Docker Compose (for local Postgres)
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) on port 8085
-
-## Quick Start (Local Dev)
+## Quick start
 
 ```bash
 pnpm install
-docker compose up -d        # Postgres on :5432
-cd packages/migrate && pnpm migrate:up
-cd packages/web && pnpm dev     # http://localhost:3000
-cd packages/ingestion && pnpm dev:start
+docker compose up -d
+pnpm -C packages/migrate migrate:up
+pnpm -C packages/web dev                   # http://localhost:3000
+pnpm -C packages/ingestion dev:start       # worker loop
 ```
 
-## Build & Deploy (k8s)
+See [`docs/dev-local.md`](./docs/dev-local.md) for details.
+
+## Build & deploy to k3s
 
 ```bash
-docker build -t <reg>/recing/web:latest        -f k8s/Dockerfile.web .
-docker build -t <reg>/recing/ingestion:latest  -f k8s/Dockerfile.ingestion .
-docker push <reg>/recing/web:latest
-docker push <reg>/recing/ingestion:latest
-kubectl create secret generic recing-secrets --from-literal=postgres-url="..." --from-literal=api-key="..."
-kubectl apply -f k8s/
+# Option A: manually
+pnpm install && cd packages/web && pnpm build && pnpm start  # local prod
+
+# Option B: CI auto-builds images → GHCR → k3s (see guides below)
 ```
 
-See [`k8s/README.md`](./k8s/README.md) for full instructions.
+See [`docs/deploy-k3s.md`](./docs/deploy-k3s.md) for full instructions.
 
 ## Configuration
 
@@ -63,9 +58,6 @@ See [`k8s/README.md`](./k8s/README.md) for full instructions.
 | `POSTGRES_URL` | `postgresql://recing:recing@localhost:5432/recing` | Postgres connection |
 | `RECING_API_KEY` | *(none — auth disabled when empty)* | Bearer token for worker |
 | `PORT` | `3000` | Web API port |
-| `WEB_API_URL` | `http://localhost:3000` | Worker → web API URL |
-| `LLM_ENDPOINT` | `http://localhost:8085/v1/chat/completions` | llama.cpp endpoint |
-| `POLL_INTERVAL_MS` | `5000` | Worker poll interval |
 
 ## Tests
 

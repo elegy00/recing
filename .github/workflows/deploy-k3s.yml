@@ -1,0 +1,39 @@
+name: Deploy to k3s
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: echo "version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" >> $GITHUB_OUTPUT
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update k8s images
+        run: |
+          V=${{ steps.version.outputs.version }}
+          sed -i "s|recing/web:latest|ghcr.io/${{ github.repository }}/recing/web:$V|" k8s/web.yaml
+          sed -i "s|recing/ingestion:latest|ghcr.io/${{ github.repository }}/recing/ingestion:$V|" k8s/ingestion.yaml
+
+      - name: Deploy to k3s
+        uses: azure/setup-kubectl@v3
+      - run: |
+          echo "${{ secrets.KUBECONFIG }}" > /tmp/kubeconfig
+          KUBECONFIG=/tmp/kubeconfig kubectl apply -f k8s/web.yaml -f k8s/ingestion.yaml
+          KUBECONFIG=/tmp/kubeconfig kubectl rollout status deployment/recing-web --timeout=60s
+          KUBECONFIG=/tmp/kubeconfig kubectl rollout status deployment/recing-ingestion --timeout=60s
