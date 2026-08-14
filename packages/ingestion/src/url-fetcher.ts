@@ -6,6 +6,7 @@
 import { FetchErrorCode } from "@recing/schema";
 import { RecipeFetchException } from "./recipe-fetch-exception.js";
 import { validateUrl } from "./url-safety-validator.js";
+import { extractTitle } from "./content-reducer.js";
 import type { RecipeFetchResult } from "./recipe-fetch-result.js";
 
 const TIMEOUT_MS = 20_000;
@@ -65,7 +66,7 @@ export async function fetchUrl(submittedUrl: string): Promise<RecipeFetchResult>
         await validateUrl(currentUrl);
       } else if (status === 304) {
         // 304 Not Modified — no body, skip content validation
-        return { originalUrl: trimmedOriginal, finalUrl: currentUrl, status, contentType: "", body: "", byteCount: 0 };
+        return { originalUrl: trimmedOriginal, finalUrl: currentUrl, status, contentType: "", body: "", byteCount: 0, title: null };
       } else if (status === 200) {
         return processResponse(trimmedOriginal, currentUrl, status, response);
       } else {
@@ -147,7 +148,7 @@ async function processResponse(
     body = new TextDecoder("utf-8").decode(arrayBuffer);
   }
 
-  return { originalUrl, finalUrl, status, contentType, body, byteCount };
+  return { originalUrl, finalUrl, status, contentType, body, byteCount, title: extractTitle(body) };
 }
 
 /**

@@ -9,4 +9,5 @@ export interface RecipeFetchResult {
   contentType: string;
   body: string;
   byteCount: number;
+  title: string | null;
 }

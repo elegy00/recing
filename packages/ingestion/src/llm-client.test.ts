@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildRequest, sendChatCompletion, LlmClientError } from "./llm-client.js";
+import { buildRequest, sendChatCompletion } from "./llm-client.js";
 
 describe("buildRequest", () => {
   it("builds correct request structure", () => {
@@ -106,7 +106,7 @@ describe("sendChatCompletion", () => {
 
     try {
       await sendChatCompletion(config, requestBody);
-      fail("should have thrown");
+      throw new Error("should have thrown");
     } catch (error) {
       const msg = (error as Error).message;
       expect(msg.length).toBeLessThanOrEqual(210); // status + ": " + 200 chars

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { RecipeExtractionInput } from "@recing/schema";
+import type { RecipeExtraction } from "@recing/schema";
 
 // ── Test fixtures ──────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ function mockConfig(): import("./llm-extraction.js").ExtractionConfig {
   };
 }
 
-function buildLlmResponse(extraction: RecipeExtractionInput): string {
+function buildLlmResponse(extraction: import("@recing/schema").RecipeExtraction): string {
   return JSON.stringify({
     id: "chatcmpl-test",
     object: "chat.completion",
@@ -85,17 +85,20 @@ describe("Full extraction pipeline integration", () => {
   });
 
   it("fetches content → reduces → sends to LLM → parses result", async () => {
-    const expectedExtraction: RecipeExtractionInput = {
+    const expectedExtraction: RecipeExtraction = {
       schemaVersion: "recipe_extraction.v1",
       status: "extracted",
       sourceUrl: "http://example.com/pancakes",
       recipeName: "Classic Pancakes",
       ingredients: [
-        { name: "flour", originalText: "1 cup" },
-        { name: "eggs", originalText: "2" },
-        { name: "milk", originalText: "1 cup" },
-        { name: "sugar", originalText: "2 tbsp" },
+        { name: "flour", quantity: "1", unit: "cup", note: "", originalText: "1 cup" },
+        { name: "eggs", quantity: "2", unit: "", note: "", originalText: "2" },
+        { name: "milk", quantity: "1", unit: "cup", note: "", originalText: "1 cup" },
+        { name: "sugar", quantity: "2", unit: "tbsp", note: "", originalText: "2 tbsp" },
       ],
+      description: null, prepTime: null, cookTime: null, totalTime: null,
+      servings: null, cuisine: null, category: null, keywords: null,
+      unusableReason: null,
       instructions: [
         { stepNumber: 1, text: "Mix dry ingredients together." },
         { stepNumber: 2, text: "Add eggs and milk, stir until smooth." },
@@ -151,14 +154,17 @@ describe("Full extraction pipeline integration", () => {
   });
 
   it("retries once on bad LLM JSON response", async () => {
-    const goodExtraction: RecipeExtractionInput = {
+    const goodExtraction: RecipeExtraction = {
       schemaVersion: "recipe_extraction.v1",
       status: "extracted",
       sourceUrl: "http://example.com/test",
       recipeName: "Retry Test",
-      ingredients: [{ name: "flour", originalText: "1 cup" }],
+      ingredients: [{ name: "flour", quantity: "1", unit: "cup", note: "", originalText: "1 cup" }],
       instructions: [{ stepNumber: 1, text: "Do it." }],
       notes: [],
+      description: null, prepTime: null, cookTime: null, totalTime: null,
+      servings: null, cuisine: null, category: null, keywords: null,
+      unusableReason: null,
     };
 
     sendChatCompletionSpy
@@ -192,14 +198,17 @@ describe("Full extraction pipeline integration", () => {
   });
 
   it("passes correct request to LLM with reduced content", async () => {
-    const expectedExtraction: RecipeExtractionInput = {
+    const expectedExtraction: RecipeExtraction = {
       schemaVersion: "recipe_extraction.v1",
       status: "extracted",
       sourceUrl: "http://example.com/test",
       recipeName: "Test",
-      ingredients: [{ name: "flour", originalText: "1 cup" }],
+      ingredients: [{ name: "flour", quantity: "1", unit: "cup", note: "", originalText: "1 cup" }],
       instructions: [{ stepNumber: 1, text: "Mix." }],
       notes: [],
+      description: null, prepTime: null, cookTime: null, totalTime: null,
+      servings: null, cuisine: null, category: null, keywords: null,
+      unusableReason: null,
     };
 
     sendChatCompletionSpy.mockResolvedValueOnce(buildLlmResponse(expectedExtraction));

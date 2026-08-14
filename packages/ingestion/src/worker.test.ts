@@ -29,7 +29,7 @@ vi.mock("./db.js", () => ({
 }));
 
 import { runWorker } from "./worker.js";
-import { getDb, closeDb } from "./db.js";
+import { closeDb } from "./db.js";
 
 const extractionConfig = { endpoint: "http://localhost:8085/v1/chat/completions", model: "qwen3.6" };
 

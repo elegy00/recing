@@ -26,9 +26,9 @@ beforeEach(async () => {
     return Promise.resolve(["93.184.216.34"]);
   });
 
-  global.fetch = vi.fn((input, init) => {
+  global.fetch = vi.fn((_input, _init) => {
     if (mockResponse.response) return Promise.resolve(mockResponse.response);
-    return originalFetch.call(global, input, init as RequestInit);
+    return originalFetch.call(global, _input, _init as RequestInit);
   });
 });
 
@@ -61,7 +61,7 @@ describe("fetchUrl", () => {
 
     it("follows a single redirect after SSRF validation", async () => {
       let callCount = 0;
-      vi.mocked(global.fetch).mockImplementation(async (input, init) => {
+      vi.mocked(global.fetch).mockImplementation(async (_input, _init) => {
         callCount++;
         if (callCount === 1) {
           return new Response("", { status: 301, headers: { Location: "https://example.com/recipe" } });
@@ -304,7 +304,7 @@ describe("fetchUrl", () => {
 
     it("uses manual redirect mode to prevent auto-following", async () => {
       let firstCall = true;
-      vi.mocked(global.fetch).mockImplementation(async (input, init) => {
+      vi.mocked(global.fetch).mockImplementation(async (_input, _init) => {
         if (firstCall) {
           firstCall = false;
           return new Response("", { status: 302, headers: { Location: "https://example.com/redirected" } });
@@ -357,7 +357,7 @@ describe("isAcceptedContentType", () => {
     ["text/html; charset=utf-8", true],
     ["application/json", false],
     ["image/png", false],
-    [null, false],
+    [null as unknown as string, false],
     ["", false],
   ])("isAcceptedContentType('%s') → %s", (ct, expected) => {
     expect(isAcceptedContentType(ct)).toBe(expected);
@@ -369,7 +369,7 @@ describe("parseCharset", () => {
     ["text/html; charset=utf-8", "utf-8"],
     ["text/plain; charset=iso-8859-1", "iso-8859-1"],
     ["text/html", undefined],
-    [null, undefined],
+    [null as unknown as string, undefined],
     ["", undefined],
     // Invalid/missing charset should be ignored gracefully
     ["text/html; charset=", undefined],

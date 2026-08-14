@@ -28,7 +28,7 @@ export {
 } from "./llm-prompt.js";
 
 // Worker loop
-export type { WorkerConfig, JobResult } from "./worker.js";
+export type { WorkerConfig } from "./worker.js";
 export { runWorker } from "./worker.js";
 
 // Content reducer

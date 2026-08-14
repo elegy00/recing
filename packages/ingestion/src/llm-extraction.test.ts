@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtractionConfig, ExtractionInput, LlmExtractionOutput } from "./llm-extraction.js";
+import type { ExtractionConfig, ExtractionInput } from "./llm-extraction.js";
 import { extractRecipe, LlmExtractionError } from "./llm-extraction.js";
-import { tokensPerSecond as calcTokensPerSecond } from "@recing/schema";
+import { tokensPerSecond as calcTokensPerSecond, LlmErrorCode } from "@recing/schema";
 
 // Helper to create a mock fetch that returns a chat completion response
 function mockFetch(responseBody: string) {
@@ -208,7 +208,7 @@ describe("LlmExtractionError", () => {
   });
 
   it("provides user-friendly message via getUserMessage", () => {
-    const err = new LlmExtractionError("LLM_UNAVAILABLE", "Test error detail here (some extra)");
+    const err = new LlmExtractionError(LlmErrorCode.LLM_UNAVAILABLE, "Test error detail here (some extra)");
     expect(err.getUserMessage()).toBe("Test error detail here");
   });
 });

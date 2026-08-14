@@ -1,8 +1,8 @@
-import { getDb, closeDb } from "./db.js";
+import { getDb } from "./db.js";
 import { fetchUrl } from "./url-fetcher.js";
 import { RecipeFetchException } from "./recipe-fetch-exception.js";
 import { extractRecipe, type ExtractionConfig, LlmExtractionError } from "./llm-extraction.js";
-import type { RecipeExtraction } from "@recing/schema";
+
 import type { Pool } from "pg";
 
 /** Configuration for the worker loop. */
@@ -14,7 +14,7 @@ export interface WorkerConfig extends ExtractionConfig {
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 
 /** Result of processing a single job. */
-interface JobResult {
+export interface JobResult {
   jobId: string;
   url: string;
   success: boolean;
@@ -99,7 +99,7 @@ export function runWorker(config: WorkerConfig): AbortController {
   console.warn(`[worker] Starting — polling for PENDING jobs every ${pollIntervalMs}ms`);
   console.warn(`[worker] LLM endpoint: ${config.endpoint} (model: ${config.model})`);
 
-  let shuttingDown = false;
+
 
   async function tick(): Promise<void> {
     while (!signal.aborted) {

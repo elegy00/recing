@@ -3,8 +3,7 @@
  * Ported from RecipeExtractionService.java.
  */
 
-import type { ReducedContent } from "./content-reducer.js";
-import { reduce, extractTitle } from "./content-reducer.js";
+import { reduce } from "./content-reducer.js";
 import * as schema from "@recing/schema";
 
 import type { LlamaClientConfig } from "./llm-client.js";
@@ -108,7 +107,7 @@ export async function extractRecipe(
 async function extractWithRetry(
   config: ExtractionConfig,
   requestBody: import("./llm-client.js").ChatCompletionRequest,
-  url: string,
+  _url: string,
   requestContentChars: number,
   truncatedInput: boolean,
   totalStart: number
@@ -124,7 +123,7 @@ async function extractWithRetry(
 
       return parseResponse(
         responseBody,
-        url,
+        _url,
         Date.now() - totalStart,
         requestContentChars,
         truncatedInput,
@@ -220,7 +219,7 @@ async function extractWithRetry(
 /** Parses the raw LLM response into a structured extraction. */
 function parseResponse(
   responseBody: string,
-  url: string,
+  _url: string,
   durationMs: number,
   requestContentChars: number,
   truncatedInput: boolean,
