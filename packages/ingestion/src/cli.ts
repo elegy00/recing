@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { config as loadDotenv } from "dotenv";
+loadDotenv({ path: new URL("../../../.env", import.meta.url) });
+
 import { runWorker } from "./worker.js";
 import { closeDb } from "./db.js";
 import { fetchUrl } from "./url-fetcher.js";

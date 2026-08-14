@@ -1,7 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
+import { config as loadDotenv } from "dotenv";
 import pg from "pg";
+
+loadDotenv({ path: new URL("../../../.env", import.meta.url) });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
