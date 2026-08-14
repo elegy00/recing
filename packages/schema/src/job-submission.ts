@@ -4,7 +4,7 @@ import { JobStatus } from "./errors.js";
 
 const statusSchema = z.nativeEnum(JobStatus);
 
-/** MongoDB document representing a recipe extraction job. */
+/** Postgres row representing a recipe extraction job. */
 export interface JobSubmission {
   id?: string;
   url: string;

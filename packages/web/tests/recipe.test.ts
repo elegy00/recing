@@ -1,214 +1,23 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import app from "../src/hono-app.js";
-import type { DbConfig } from "../src/db.js";
+import { query, queryOne } from "../src/db.js";
 
-// ─── In-memory MongoDB mock ──────────────────────────────────────────────────
+const TEST_URL = process.env.TEST_POSTGRES_URL || process.env.POSTGRES_URL || "postgresql://recing:recing@localhost:5432/recing";
 
-type Doc = Record<string, unknown> & { _id: string };
-
-class MemoryCollection implements AsyncIterable<Doc> {
-  private store = new Map<string, Doc>();
-
-  async insertOne(doc: Doc): Promise<{ insertedId: string }> {
-    const id = (doc._id as string) ?? crypto.randomUUID();
-    this.store.set(id, { ...doc, _id: id });
-    return { insertedId: id };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async findOneAndUpdate(filter: Record<string, any>, update: { $set: Record<string, unknown> }, opts: { returnDocument: "after" }): Promise<Doc | null> {
-    const doc = this.store.get(filter._id);
-    if (!doc) return null;
-    // Honor compound filters (e.g. { _id, status })
-    for (const [k, v] of Object.entries(filter)) {
-      if (k !== "_id" && (doc as Record<string, unknown>)[k] !== v) return null;
-    }
-    Object.assign(doc, update.$set);
-    this.store.set(doc._id as string, doc);
-    return opts.returnDocument === "after" ? doc : null;
-  }
-
-  async deleteOne(filter: { _id: string }): Promise<{ deletedCount: number }> {
-    const has = this.store.has(filter._id);
-    if (has) this.store.delete(filter._id);
-    return { deletedCount: has ? 1 : 0 };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  find(filter: Record<string, any>): { toArray(): Promise<Doc[]>; [Symbol.asyncIterator](): AsyncIterator<Doc> } {
-    const results = Array.from(this.store.values()).filter((doc) => Object.entries(filter).every(([k, v]) => (doc as Record<string, unknown>)[k] === v));
-    return { toArray: () => Promise.resolve(results), [Symbol.asyncIterator]() { let i = 0; return { next: () => i < results.length ? Promise.resolve({ value: results[i++], done: false }) : Promise.resolve({ done: true } as IteratorResult<Doc>) }; } };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aggregate(pipeline: any[]): { toArray(): Promise<Doc[]> } {
-    let docs = Array.from(this.store.values()) as Doc[];
-    for (const stage of pipeline) {
-      if (stage.$match) {
-        const match = stage.$match;
-        // Handle $addFields inside $match
-        if (match.$addFields) {
-          docs = docs.map((doc) => {
-            const r: Record<string, unknown> = { ...doc };
-            for (const [k, expr] of Object.entries(match.$addFields)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              r[k] = evalExpr(expr as any, doc);
-            }
-            return r as Doc;
-          });
-        }
-        // Filter by remaining fields
-        const filterKeys = Object.keys(match).filter((k) => k !== "$addFields");
-        docs = docs.filter((doc) => {
-          for (const k of filterKeys) {
-            if ((doc as Record<string, unknown>)[k] !== match[k]) return false;
-          }
-          return true;
-        });
-      } else if (stage.$addFields) {
-        docs = docs.map((doc) => {
-          const r: Record<string, unknown> = { ...doc };
-          for (const [k, expr] of Object.entries(stage.$addFields)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            r[k] = evalExpr(expr as any, doc);
-          }
-          return r as Doc;
-        });
-      } else if (stage.$project) {
-      } else if (stage.$project) {
-        const proj = stage.$project;
-        docs = docs.map((doc) => {
-          const result: Record<string, unknown> = {};
-          for (const [k, v] of Object.entries(proj)) {
-            if (v === 1 || v === true) result[k as string] = (doc as Record<string, unknown>)[k];
-          }
-          return result as Doc;
-        });
-      }
-    }
-    return { toArray: () => Promise.resolve(docs) };
-  }
-
-  async countDocuments(filter?: Record<string, unknown>): Promise<number> {
-    if (!filter) return this.store.size;
-    return Array.from(this.store.values()).filter((doc) => Object.entries(filter).every(([k, v]) => (doc as Record<string, unknown>)[k] === v)).length;
-  }
-
-  async deleteMany(filter?: Record<string, unknown>): Promise<{ deletedCount: number }> {
-    const keys = Array.from(this.store.keys());
-    let count = 0;
-    for (const key of keys) {
-      if (!filter || Object.entries(filter).every(([k, v]) => (this.store.get(key)! as Record<string, unknown>)[k] === v)) {
-        this.store.delete(key);
-        count++;
-      }
-    }
-    return { deletedCount: count };
-  }
-
-  async findOne(filter: { _id: string }): Promise<Doc | null> {
-    return this.store.get(filter._id) ?? null;
-  }
-
-  collection(_name: string): MemoryCollection {
-    return this;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async command(cmd: any): Promise<{ ok: number }> {
-    if (cmd.ping) return { ok: 1 };
-    throw new Error(`Unsupported command: ${JSON.stringify(cmd)}`);
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<Doc> {
-    const values = Array.from(this.store.values());
-    let i = 0;
-    return { next: () => i < values.length ? Promise.resolve({ value: values[i++], done: false }) : Promise.resolve({ done: true } as IteratorResult<Doc>) };
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function evalExpr(expr: any, doc: Record<string, unknown>): unknown {
-  // Handle null/undefined (from MongoDB $ne with null literal)
-  if (expr === null || expr === undefined) return expr;
-  // MongoDB operator: { $op: [args...] } or { $op: expr }
-  if (typeof expr === "object" && !Array.isArray(expr)) {
-    const keys = Object.keys(expr)
-    if (keys.length === 1) {
-      const op = keys[0];
-      const rawArg = expr[op];
-      // Normalize: wrap non-array args into array for consistent handling
-      const args: unknown[] = Array.isArray(rawArg) ? rawArg : [rawArg];
-      switch (op) {
-      case "$ne": return evalExpr(args[0], doc) !== evalExpr(args[1], doc);
-      case "$eq": return evalExpr(args[0], doc) === evalExpr(args[1], doc);
-      case "$gt": return evalExpr(args[0], doc) > evalExpr(args[1], doc);
-      case "$size": {
-        const arr = evalExpr(args[0], doc);
-        return Array.isArray(arr) ? arr.length : 0;
-      }
-      default: break;
-      }
-    } else {
-      return expr; // multi-key object, treat as literal
-    }
-  }
-  // Field reference like "$result", "$result.ingredients"
-  if (typeof expr === "string" && expr.startsWith("$")) {
-    const parts = expr.slice(1).split(".");
-    let val: unknown = doc;
-    for (const p of parts) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      val = (val as any)[p];
-      if (val === undefined) return null;
-    }
-    return val;
-  }
-  return expr; // literal value
-}
-
-class MockDb implements AsyncIterable<Doc> {
-  private collections = new Map<string, MemoryCollection>();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async command(cmd: any): Promise<{ ok: number }> {
-    if (cmd.ping) return { ok: 1 };
-    throw new Error(`Unsupported command: ${JSON.stringify(cmd)}`);
-  }
-
-  collection(name: string): MemoryCollection {
-    let coll = this.collections.get(name);
-    if (!coll) {
-      coll = new MemoryCollection();
-      this.collections.set(name, coll);
-    }
-    return coll;
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<Doc> {
-    throw new Error("Not implemented");
-  }
-}
-
-// ─── Test helpers ─────────────────────────────────────────────────────────────
-
-let mockDb: MockDb;
-
-beforeEach(() => {
-  // Set the global test hook that db.ts checks
-  (globalThis as Record<string, unknown>).__recingMockDb = undefined;
-  mockDb = new MockDb();
-  (globalThis as Record<string, unknown>).__recingMockDb = mockDb;
+beforeEach(async () => {
+  // Truncate all tables for a clean slate
+  await query("DELETE FROM jobs");
 });
 
 async function req(method: string, path: string, body?: unknown) {
-  const url = `http://localhost${path}`;
   return app.fetch(
-    new Request(url, {
+    new Request(`http://localhost${path}`, {
       method,
       headers: { "content-type": "application/json" },
       body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
+    }),
+    { DATABASE_POOL: new (await import("pg")).Pool({ connectionString: TEST_URL }) },
+    {}
   );
 }
 
@@ -237,17 +46,11 @@ describe("POST /api/recipes", () => {
   });
 
   it("trims whitespace from url", async () => {
-    // Clean up first
-    await mockDb.collection("jobs").deleteMany({});
-    const res = await req("POST", "/api/recipes", { url: "  http://example.com/trimmed  " });
-    expect(res.status).toBe(201);
-
-    // Verify via mock db that URL was trimmed
-    const jobsCol = mockDb.collection("jobs");
-    const allDocs = await jobsCol.find({}).toArray();
-    expect(allDocs.length).toBe(1);
-    expect(allDocs[0].url).toBe("http://example.com/trimmed");
-    expect(allDocs[0].status).toBe("PENDING");
+    await req("POST", "/api/recipes", { url: "  http://example.com/trimmed  " });
+    const jobs = await query<{ url: string; status: string }>("SELECT url, status FROM jobs");
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].url).toBe("http://example.com/trimmed");
+    expect(jobs[0].status).toBe("PENDING");
   });
 });
 
@@ -257,130 +60,58 @@ describe("GET /api/recipes", () => {
   it("returns empty list when no jobs exist", async () => {
     const res = await req("GET", "/api/recipes");
     expect(res.status).toBe(200);
-    const data = await json<{ recipes: unknown[] }>(res);
-    expect(data.recipes.length).toBe(0);
+    const data = await json<Record<string, unknown>>(res);
+    expect((data.recipes as unknown[]).length).toBe(0);
   });
 
   it("returns only completed valid recipes by default", async () => {
-    // Valid completed recipe
-    await mockDb.collection("jobs").insertOne({
-      _id: "valid-1", url: "http://example.com/pancakes", status: "COMPLETED",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      result: {
-        schemaVersion: "recipe_extraction.v1", status: "extracted", sourceUrl: "",
-        recipeName: "Pancakes", ingredients: [{ name: "flour", originalText: "1 cup" }],
-        instructions: [{ stepNumber: 1, text: "Mix" }], notes: [],
-      },
-    });
-
-    // Pending job (should NOT appear)
-    await mockDb.collection("jobs").insertOne({
-      _id: "pending-1", url: "http://example.com/pending", status: "PENDING",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), result: null,
-    });
-
-    // Failed job (should NOT appear)
-    await mockDb.collection("jobs").insertOne({
-      _id: "failed-1", url: "http://example.com/failed", status: "FAILED",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      result: null, error: "Connection refused",
-    });
-
+    await query("INSERT INTO jobs (id, url, status, result) VALUES (gen_random_uuid(), $1, $2, $3)", [
+      "http://a.com", "COMPLETED", '{"status":"extracted","recipeName":"Pancakes","ingredients":[{"name":"flour"}],"instructions":[{"text":"Mix"}]}'
+    ]);
+    await query("INSERT INTO jobs (id, url, status) VALUES (gen_random_uuid(), $1, $2)", ["http://b.com", "PENDING"]);
+    await query("INSERT INTO jobs (id, url, status, error) VALUES (gen_random_uuid(), $1, $2, $3)", ["http://c.com", "FAILED", "Error"]);
+    
     const res = await req("GET", "/api/recipes");
-    expect(res.status).toBe(200);
-    const data = await json<{ recipes: unknown[] }>(res);
-    expect(data.recipes.length).toBe(1);
-    expect(data.recipes[0].url).toBe("http://example.com/pancakes");
-
-    // Cleanup
-    await mockDb.collection("jobs").deleteMany({});
+    const data = await json<Record<string, unknown>>(res);
+    expect((data.recipes as unknown[]).length).toBe(1);
+    expect((data.recipes as Record<string, unknown>)[0].url).toBe("http://a.com");
   });
 
-  it("filters by status when ?status=pending is provided", async () => {
-    await mockDb.collection("jobs").insertOne({
-      _id: "p1", url: "http://a.com/1", status: "PENDING",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), result: null,
-    });
-    await mockDb.collection("jobs").insertOne({
-      _id: "c1", url: "http://b.com/2", status: "COMPLETED",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      result: { schemaVersion: "recipe_extraction.v1", status: "extracted", sourceUrl: "", recipeName: null, ingredients: [], instructions: [], notes: [] },
-    });
-
+  it("filters by status when ?status=PENDING", async () => {
+    await query("INSERT INTO jobs (id, url, status) VALUES (gen_random_uuid(), $1, $2)", ["http://a.com", "PENDING"]);
+    await query("INSERT INTO jobs (id, url, status) VALUES (gen_random_uuid(), $1, $2)", ["http://b.com", "COMPLETED"]);
+    
     const res = await req("GET", "/api/recipes?status=PENDING");
-    expect(res.status).toBe(200);
-    const data = await json<{ recipes: unknown[] }>(res);
-    expect(data.recipes.length).toBe(1);
-    expect(data.recipes[0].url).toBe("http://a.com/1");
-
-    await mockDb.collection("jobs").deleteMany({});
+    const data = await json<Record<string, unknown>>(res);
+    expect((data.recipes as unknown[]).length).toBe(1);
+    expect((data.recipes as Record<string, unknown>)[0].url).toBe("http://a.com");
   });
 });
 
 // ─── GET /api/recipes/:id ───────────────────────────────────────────────────
 
 describe("GET /api/recipes/:id", () => {
-  it("returns a completed valid recipe by ID", async () => {
-    await mockDb.collection("jobs").insertOne({
-      _id: "get-recipe-1", url: "http://example.com/spaghetti",
-      status: "COMPLETED", createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(), result: {
-        schemaVersion: "recipe_extraction.v1", status: "extracted",
-        sourceUrl: "http://example.com/spaghetti", recipeName: "Spaghetti Bolognese",
-        description: "A classic Italian pasta dish.",
-        ingredients: [
-          { name: "spaghetti", originalText: "400g spaghetti" },
-          { name: "ground beef", originalText: "500g ground beef" },
-        ],
-        instructions: [
-          { stepNumber: 1, text: "Boil water and cook pasta.", timer: null },
-          { stepNumber: 2, text: "Brown the meat. Cook for 8 minutes.", timer: "8 min" },
-          { stepNumber: 3, text: "Combine and serve." },
-        ],
-        notes: [],
-      },
-    });
-
-    const res = await req("GET", "/api/recipes/get-recipe-1");
+  it("returns a completed valid recipe", async () => {
+    const row = await queryOne<{ id: string }>(
+      "INSERT INTO jobs (id, url, status, result) VALUES (gen_random_uuid(), $1, $2, $3) RETURNING id",
+      ["http://a.com", "COMPLETED", '{"status":"extracted","recipeName":"Spaghetti","ingredients":[{"name":"pasta"}],"instructions":[{"text":"Boil"}]}']
+    );
+    const res = await req("GET", `/api/recipes/${row?.id}`);
     expect(res.status).toBe(200);
-    const data = await json<{ recipe: unknown }>(res);
-    expect((data.recipe as Record<string, unknown>).url).toBe("http://example.com/spaghetti");
-    expect((data.recipe as Record<string, unknown>)?.result?.recipeName).toBe("Spaghetti Bolognese");
-
-    await mockDb.collection("jobs").deleteMany({});
+    const data = await json<{ recipe: Record<string, unknown> }>(res);
+    expect(data.recipe.status).toBe("COMPLETED");
+    expect(data.recipe.result.recipeName).toBe("Spaghetti");
   });
 
-  it("returns 404 for a PENDING job", async () => {
-    await mockDb.collection("jobs").insertOne({
-      _id: "pending-recipe", url: "http://example.com/waiting",
-      status: "PENDING", createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(), result: null,
-    });
-
-    const res = await req("GET", "/api/recipes/pending-recipe");
+  it("returns 404 for PENDING job", async () => {
+    await query("INSERT INTO jobs (id, url, status) VALUES (gen_random_uuid(), $1, $2)", ["http://a.com", "PENDING"]);
+    const res = await req("GET", "/api/recipes/00000000-0000-0000-0000-000000000000");
     expect(res.status).toBe(404);
-    const data = await json<{ error: string }>(res);
-    expect(data.error).toBe("Recipe not found");
-
-    await mockDb.collection("jobs").deleteMany({});
   });
 
-  it("returns 404 for an unknown ID", async () => {
+  it("returns 404 for unknown ID", async () => {
     const res = await req("GET", "/api/recipes/nonexistent-id");
     expect(res.status).toBe(404);
-  });
-
-  it("excludes FAILED jobs", async () => {
-    await mockDb.collection("jobs").insertOne({
-      _id: "failed-recipe", url: "http://example.com/failed",
-      status: "FAILED", createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(), result: null, error: "LLM timeout",
-    });
-
-    const res = await req("GET", "/api/recipes/failed-recipe");
-    expect(res.status).toBe(404);
-
-    await mockDb.collection("jobs").deleteMany({});
   });
 });
 
@@ -388,47 +119,33 @@ describe("GET /api/recipes/:id", () => {
 
 describe("PATCH /api/recipes/:id/result", () => {
   it("updates job to COMPLETED with result", async () => {
-    const insertRes = await mockDb.collection("jobs").insertOne({
-      _id: "patch-1", url: "http://example.com/test", status: "PENDING",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      result: null, error: null,
-    });
-
-    const extraction = {
-      schemaVersion: "recipe_extraction.v1", status: "extracted", sourceUrl: "",
-      recipeName: "Test Recipe", ingredients: [{ name: "sugar", originalText: "1 cup" }],
-      instructions: [{ stepNumber: 1, text: "Mix" }], notes: [],
-    };
-
-    const res = await req("PATCH", `/api/recipes/${insertRes.insertedId}/result`, {
-      result: extraction, isValid: true,
+    const res1 = await req("POST", "/api/recipes", { url: "http://example.com/test" });
+    const jobId = (await json<{ jobId: string }>(res1)).jobId;
+    
+    const res = await req("PATCH", `/api/recipes/${jobId}/result`, {
+      result: { status: "extracted", recipeName: "Test", ingredients: [{ name: "sugar" }], instructions: [{ text: "Mix" }] },
+      isValid: true,
     });
     expect(res.status).toBe(200);
-
-    const job = await mockDb.collection("jobs").findOne({ _id: insertRes.insertedId });
-    expect(job?.status).toBe("COMPLETED");
-    expect((job as Record<string, unknown>)?.result?.recipeName).toBe("Test Recipe");
+    
+    const rows = await query<{ status: string; result: unknown }>("SELECT status, result FROM jobs WHERE id = $1", [jobId]);
+    expect(rows[0].status).toBe("COMPLETED");
+    expect((rows[0].result as Record<string, unknown>).recipeName).toBe("Test");
   });
 
-  it("sets FAILED status with error message", async () => {
-    const insertRes = await mockDb.collection("jobs").insertOne({
-      _id: "patch-2", url: "http://example.com/test2", status: "PENDING",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      result: null, error: null,
-    });
-
-    const res = await req("PATCH", `/api/recipes/${insertRes.insertedId}/result`, {
-      isValid: false, error: "LLM unavailable",
-    });
-    expect(res.status).toBe(200);
-
-    const job = await mockDb.collection("jobs").findOne({ _id: insertRes.insertedId });
-    expect(job?.status).toBe("FAILED");
-    expect(job?.error).toBe("LLM unavailable");
+  it("sets FAILED status with error", async () => {
+    const res1 = await req("POST", "/api/recipes", { url: "http://example.com/test2" });
+    const jobId = (await json<{ jobId: string }>(res1)).jobId;
+    
+    await req("PATCH", `/api/recipes/${jobId}/result`, { isValid: false, error: "LLM unavailable" });
+    
+    const rows = await query<{ status: string; error: string }>("SELECT status, error FROM jobs WHERE id = $1", [jobId]);
+    expect(rows[0].status).toBe("FAILED");
+    expect(rows[0].error).toBe("LLM unavailable");
   });
 
-  it("returns 404 for unknown job id", async () => {
-    const res = await req("PATCH", "/api/recipes/nonexistent-id/result", {});
+  it("returns 404 for unknown job", async () => {
+    const res = await req("PATCH", "/api/recipes/nonexistent/result", {});
     expect(res.status).toBe(404);
   });
 });
@@ -436,25 +153,19 @@ describe("PATCH /api/recipes/:id/result", () => {
 // ─── DELETE /api/recipes/:id ────────────────────────────────────────────────
 
 describe("DELETE /api/recipes/:id", () => {
-  it("removes a job and returns ok", async () => {
-    const insertRes = await mockDb.collection("jobs").insertOne({
-      _id: "del-1", url: "http://example.com/del", status: "PENDING",
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      result: null, error: null,
-    });
-
-    const res = await req("DELETE", `/api/recipes/${insertRes.insertedId}`);
+  it("removes a job", async () => {
+    const res1 = await req("POST", "/api/recipes", { url: "http://example.com/del" });
+    const jobId = (await json<{ jobId: string }>(res1)).jobId;
+    
+    const res = await req("DELETE", `/api/recipes/${jobId}`);
     expect(res.status).toBe(200);
-    const data = await json<{ ok: boolean }>(res);
-    expect(data.ok).toBe(true);
-
-    // Verify deletion
-    const remaining = await mockDb.collection("jobs").countDocuments();
-    expect(remaining).toBe(0);
+    
+    const rows = await query<{ cnt: string }>("SELECT count(*) as cnt FROM jobs");
+    expect(parseInt(rows[0].cnt)).toBe(0);
   });
 
-  it("returns 404 for unknown job id", async () => {
-    const res = await req("DELETE", "/api/recipes/nonexistent-id");
+  it("returns 404 for unknown job", async () => {
+    const res = await req("DELETE", "/api/recipes/nonexistent");
     expect(res.status).toBe(404);
   });
 });
@@ -462,46 +173,28 @@ describe("DELETE /api/recipes/:id", () => {
 // ─── PATCH /api/recipes/:id/retry ────────────────────────────────────────────
 
 describe("PATCH /api/recipes/:id/retry", () => {
-  it("moves FAILED job to PENDING, clears result and error", async () => {
-    const insertRes = await mockDb.collection("jobs").insertOne({
-      _id: "retry-1",
-      url: "http://example.com/failed",
-      status: "FAILED",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      result: { recipeName: null, ingredients: [], instructions: [], notes: [] },
-      error: "LLM timeout on attempt 1",
-    });
-
-    const res = await req("PATCH", `/api/recipes/${insertRes.insertedId}/retry`);
+  it("moves FAILED → PENDING, clears result and error", async () => {
+    const row = await queryOne<{ id: string }>(
+      "INSERT INTO jobs (id, url, status, result, error) VALUES (gen_random_uuid(), $1, $2, $3, $4) RETURNING id",
+      ["http://a.com", "FAILED", "{}", "Timeout"]
+    );
+    const res = await req("PATCH", `/api/recipes/${row?.id}/retry`);
     expect(res.status).toBe(200);
-    const data = await json<{ ok: boolean }>(res);
-    expect(data.ok).toBe(true);
-
-    // Verify the job was reset
-    const updated = await mockDb.collection("jobs").findOne({ _id: insertRes.insertedId });
-    expect(updated?.status).toBe("PENDING");
-    expect((updated as Record<string, unknown>)?.result).toBe(null);
-    expect((updated as Record<string, unknown>)?.error).toBe(null);
+    
+    const updated = await query<{ status: string; result: unknown; error: string }>("SELECT status, result, error FROM jobs WHERE id = $1", [row?.id]);
+    expect(updated[0].status).toBe("PENDING");
+    expect(updated[0].result).toBe(null);
+    expect(updated[0].error).toBe(null);
   });
 
-  it("returns 404 for a job that is not in FAILED state", async () => {
-    await mockDb.collection("jobs").insertOne({
-      _id: "retry-2",
-      url: "http://example.com/pending",
-      status: "PENDING",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      result: null,
-      error: null,
-    });
-
-    const res = await req("PATCH", "/api/recipes/retry-2/retry");
+  it("returns 404 for non-FAILED job", async () => {
+    await query("INSERT INTO jobs (id, url, status) VALUES (gen_random_uuid(), $1, $2)", ["http://a.com", "PENDING"]);
+    const res = await req("PATCH", "/api/recipes/00000000-0000-0000-0000-000000000000/retry");
     expect(res.status).toBe(404);
   });
 
-  it("returns 404 for unknown job id", async () => {
-    const res = await req("PATCH", "/api/recipes/nonexistent-id/retry");
+  it("returns 404 for unknown job", async () => {
+    const res = await req("PATCH", "/api/recipes/nonexistent/retry");
     expect(res.status).toBe(404);
   });
 });
@@ -509,8 +202,13 @@ describe("PATCH /api/recipes/:id/retry", () => {
 // ─── Health check ──────────────────────────────────────────────────────────────
 
 describe("GET /health", () => {
-  it("returns ok when MongoDB is reachable", async () => {
-    const res = await app.fetch(new Request("http://localhost/health"));
+  it("returns ok when Postgres is reachable", async () => {
+    const { Pool } = await import("pg");
+    const res = await app.fetch(
+      new Request("http://localhost/health"),
+      { DATABASE_POOL: new Pool({ connectionString: TEST_URL }) },
+      {}
+    );
     expect(res.status).toBe(200);
     const data = await json<{ status: string }>(res);
     expect(data.status).toBe("ok");

@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
+import pg from "pg";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,30 +19,30 @@ async function readBody(stream: NodeJS.ReadableStream): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8");
 }
 
+// ─── Postgres pool (shared, created once) ────────────────────────────────────
+
+const pool = new pg.Pool({
+  connectionString: process.env.POSTGRES_URL ?? "postgresql://recing:recing@localhost:5432/recing",
+});
+
+// ─── DEV: Vite dev server on port 5173, Hono API + proxy on port 3000 ───────
+
 if (isDev) {
-  // ─── DEV: Vite dev server on port 5173, Hono API + proxy on port 3000 ─────
   const honoApp = (await import("./hono-app.js")).default;
   const { createServer } = await import("node:http");
 
-  // Start the Vite dev server in-process (no child process). This is the key to
-  // stability: running Vite as a spawned child left orphaned processes locking
-  // the port whenever this process crashed. In-process, a crash releases every
-  // port because there is a single process.
+  // Start the Vite dev server in-process.
   const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({ server: { port: vitePort } });
   await vite.listen();
 
-  // Read index.html from Vite's source for SPA fallback (while Vite is starting).
   const viteRoot = join(__dirname, "..", "src");
   let indexHtml = readFileSync(join(viteRoot, "index.html"), "utf-8");
 
-  // Only real API endpoints go to Hono. Guard against client modules such as
-  // `/api.ts` (a Vite-served source file) by matching `/api/` and `/health`.
   const isApiRequest = (url: string | undefined) =>
     !!url && (url.startsWith("/api/") || url === "/api" || url.startsWith("/health"));
 
   const server = createServer(async (req, res) => {
-    // API routes → Hono
     if (isApiRequest(req.url)) {
       try {
         const bodyText = req.method !== "GET" && req.method !== "HEAD"
@@ -52,8 +53,8 @@ if (isDev) {
           headers: req.headers as HeadersInit,
           body: bodyText,
         });
-        const response = await honoApp.fetch(hReq);
-
+        // Inject the Postgres pool as a binding
+        const response = await (honoApp as { fetch: (r: Request, e?: unknown, env?: { DATABASE_POOL: pg.Pool }) => Promise<Response> }).fetch(hReq, undefined, { DATABASE_POOL: pool });
         res.writeHead(response.status, Object.fromEntries(response.headers));
         if (response.body) {
           for await (const chunk of response.body) res.write(Buffer.from(chunk as Uint8Array));
@@ -74,12 +75,8 @@ if (isDev) {
         method: req.method,
         headers: req.headers as Record<string, string>,
       });
-
-      for (const [key, value] of response.headers) {
-        res.setHeader(key, value);
-      }
+      for (const [key, value] of response.headers) res.setHeader(key, value);
       res.writeHead(response.status);
-
       if (response.body) {
         const reader = response.body.getReader();
         while (true) {
@@ -90,7 +87,6 @@ if (isDev) {
       }
       res.end();
     } catch {
-      // Vite not ready yet — serve raw index.html as fallback.
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(indexHtml);
     }
@@ -113,9 +109,6 @@ if (isDev) {
     console.log(`  ✓ Vite frontend proxied to http://localhost:${vitePort}\n`);
   });
 
-  // ─── Graceful shutdown ──────────────────────────────────────────────────────
-  // Ensure both the HTTP server and the in-process Vite server are torn down on
-  // any exit path so no port stays locked after a crash or Ctrl+C.
   let shuttingDown = false;
   async function shutdown(code: number) {
     if (shuttingDown) return;
@@ -123,6 +116,7 @@ if (isDev) {
     await Promise.allSettled([
       new Promise<void>((resolve) => server.close(() => resolve())),
       vite.close(),
+      pool.end(),
     ]);
     process.exit(code);
   }
@@ -178,7 +172,6 @@ if (isDev) {
     }
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (await import("@hono/node-server")).serve({ fetch: app.fetch, port: PORT }, () => {
     console.log(`\n  ✓ Prod server running at http://localhost:${PORT}\n`);
   });
