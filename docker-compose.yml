@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: recing-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - recing-pg-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: recing
+      POSTGRES_USER: recing
+      POSTGRES_PASSWORD: recing
+    healthcheck:
+      test: pg_isready -U recing -d recing
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  recing-pg-data:

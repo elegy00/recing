@@ -1,0 +1,35 @@
+{
+  "name": "@recing/ingestion",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "recing-ingest": "./src/cli.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev:start": "pnpm exec tsx src/cli.ts start",
+    "dev:fetch": "pnpm exec tsx src/cli.ts fetch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@recing/schema": "workspace:*",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@types/pg": "^8.21.0",
+    "dotenv": "^16.5.2",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

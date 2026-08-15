@@ -1,0 +1,15 @@
+{
+  "name": "@recing/migrate",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "migrate:up": "cat schema.sql | docker compose exec -T postgres psql -U recing -d recing",
+    "migrate:down": "echo 'Manual rollback required'"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3"
+  }
+}

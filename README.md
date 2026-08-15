@@ -1,97 +1,66 @@
 # Recipe Ingestor
 
-Ingests recipes from URLs using a local LLM (llama.cpp).
-
-## Quick Start
-
-### 1. Start MongoDB with Podman
-
-```bash
-podman run -d \
-  --name recing-mongodb \
-  -p 27017:27017 \
-  -v mongodb-data:/var/lib/mongodb/data \
-  -e MONGO_INITDB_DATABASE=recipe-ingestor \
-  mongo:7.0
-```
-
-This starts a MongoDB 7.0 container on `localhost:27017` with persistent volume storage (`mongodb-data`). The database name is `recipe-ingestor`.
-
-To stop and clean up:
-
-```bash
-# Stop the container (keeps data)
-podman stop recing-mongodb && podman rm recing-mongodb
-
-# Remove volume (deletes all stored jobs)
-podman volume rm mongodb-data
-```
-
-### 2. Start llama.cpp
-
-Run your local llama.cpp server exposing an OpenAI-compatible endpoint:
-
-```bash
-# Example with llama-server from llama.cpp build
-./llama-server --model <path-to-model.gguf> --port 8085
-```
-
-The default endpoint is `http://localhost:8085/v1/chat/completions`. Override in `web/src/main/resources/application.properties`:
-
-```properties
-recing.llm.endpoint=http://localhost:8085/v1/chat/completions
-recing.llm.model=qwen3.6
-```
-
-### 3. Run the application
-
-```bash
-cd web && ./mvnw spring-boot:run
-# or from project root
-./mvnw -pl web spring-boot:run
-```
-
-Open [http://localhost:8080](http://localhost:8080) and submit a recipe URL.
-
-## Project Structure
+Ingests recipes from URLs using a local LLM (llama.cpp). A pnpm/TypeScript monorepo — everything under [`packages/`](./packages/).
 
 ```
 recing/
-├── web/                          # Spring Boot application (Java 17, Maven)
-│   │   ├── RecipeController.java       # POST /recipes → async job
-│   │   ├── fetch/                      # MVP1: URL fetching
-│   │   └── llm/                        # MVP2: LLM extraction pipeline
-│   └── src/main/resources/
-│       ├── application.properties
-│       └── templates/                  # Thymeleaf views (index, result)
-└── docs/requirements/advanced/         # Async processing & refinement specs
+├── packages/
+│   ├── schema/       Shared types + Zod schemas
+│   ├── web/          Hono API + React SPA
+│   ├── ingestion/    Worker — fetches URLs, calls llama.cpp
+│   └── migrate/      Postgres migrations
+├── docker-compose.yml    Local Postgres
+├── k8s/                  k3s deployment manifests
+├── .github/workflows/    CI/CD (build, test, publish images)
+└── docs/
+    ├── dev-local.md      Local development guide
+    └── deploy-k3s.md     k3s deployment guide
 ```
 
-## Requirements
+## How it works
 
-- Java 17+
-- Maven 3.8+
-- Podman (for MongoDB)
-- llama.cpp server running locally
-
-## Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Submit a recipe URL form |
-| POST | `/recipes?url=...` | Submit URL, redirects to job page |
-| GET | `/recipes/{jobId}` | Show loading state or final result |
-
-## Async Processing Flow
-
-```mermaid
-flowchart LR
-  A[POST /recipes] --> B[302 Redirect\n/recipes/{jobId}]
-  B --> C[MongoDB: PENDING job]\nD[Async worker: one-at-a-time]\nE[Fetch + LLM extraction]\nF[MongoDB update:\nCOMPLETED or FAILED]\nG[GET /recipes/{jobId}]\nH[Thymeleaf: loading or result]
-  C --> D
-  D --> E
-  E --> F
-  G --> H
+```
+Browser ──► recing-web (API + SPA) ──► Postgres
+                              │
+recing-ingestion ◄────────────┘
+     │
+     ├──► llama-cpp (LAN, :8085)
+     └──► POST result to recing-web
 ```
 
-Jobs are processed one at a time to avoid overwhelming the local LLM. While processing, the job page shows a spinner — refresh manually to see updates.
+## Quick start
+
+```bash
+pnpm install
+docker compose up -d
+pnpm -C packages/migrate migrate:up
+pnpm -C packages/web dev                   # http://localhost:3000
+pnpm -C packages/ingestion dev:start       # worker loop
+```
+
+See [`docs/dev-local.md`](./docs/dev-local.md) for details.
+
+## Build & deploy to k3s
+
+```bash
+# Option A: manually
+pnpm install && cd packages/web && pnpm build && pnpm start  # local prod
+
+# Option B: CI auto-builds images → GHCR → k3s (see guides below)
+```
+
+See [`docs/deploy-k3s.md`](./docs/deploy-k3s.md) for full instructions.
+
+## Configuration
+
+| Variable | Default | Notes |
+|---|---|---|
+| `POSTGRES_URL` | `postgresql://recing:recing@localhost:5432/recing` | Postgres connection |
+| `RECING_API_KEY` | *(none — auth disabled when empty)* | Bearer token for worker |
+| `PORT` | `3000` | Web API port |
+
+## Tests
+
+```bash
+pnpm test          # all packages
+```

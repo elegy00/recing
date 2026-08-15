@@ -1,0 +1,32 @@
+# ── Build stage ────────────────────────────────────────────────
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/schema/package.json packages/schema/
+COPY packages/ingestion/package.json packages/ingestion/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages/schema/ packages/schema/
+COPY packages/ingestion/ packages/ingestion/
+
+RUN cd packages/schema && pnpm run build 2>/dev/null || true
+RUN cd packages/ingestion && pnpm run build 2>/dev/null || true
+
+# ── Production stage ───────────────────────────────────────────
+FROM node:22-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=build /app/packages/ingestion/dist ./dist
+COPY --from=build /app/packages/schema/dist ./node_modules/schema/dist
+
+EXPOSE 9090
+
+CMD ["node", "dist/cli.js", "start"]

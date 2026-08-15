@@ -1,0 +1,36 @@
+{
+  "name": "@recing/web",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts --mode dev",
+    "build:client": "vite build",
+    "build:server": "tsc --project tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "@recing/schema": "workspace:*",
+    "hono": "^4.12.24",
+    "mongodb": "^6.17.0",
+    "pg": "^8.23.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@types/pg": "^8.21.0",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.7.0",
+    "dotenv": "^16.5.2",
+    "pg-mem": "^3.0.14",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.8"
+  }
+}

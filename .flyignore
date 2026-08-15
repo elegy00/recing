@@ -1,0 +1,4 @@
+# Excluded from Docker build context
+node_modules/
+dist/client/
+dist/
