@@ -3,6 +3,8 @@ import app from "../src/hono-app.js";
 import { query, queryOne } from "../src/db.js";
 
 const TEST_URL = process.env.TEST_POSTGRES_URL || process.env.POSTGRES_URL || "postgresql://recing:recing@localhost:5432/recing";
+// Ensure db.js's global pool (query/queryOne) targets the same database as the API pool in req().
+process.env.POSTGRES_URL = TEST_URL;
 
 beforeEach(async () => {
   // Truncate all tables for a clean slate

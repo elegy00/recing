@@ -17,6 +17,20 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: recing
+          POSTGRES_USER: recing
+          POSTGRES_PASSWORD: recing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "psql -U recing -d recing -c 'SELECT 1'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,6 +40,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - name: Apply database schema
+        run: psql "postgresql://recing:recing@localhost:5432/recing" -f packages/migrate/schema.sql
       - run: pnpm test
 
   build:
