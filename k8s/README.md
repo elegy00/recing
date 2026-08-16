@@ -1,5 +1,24 @@
 # Kubernetes Deployment — LAN Cluster
 
+## Quick deploy
+
+Download and run the bootstrap script — it pulls all manifests from GitHub and walks you through setup:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/elegy00/recing/main/k8s/deploy.sh | bash
+```
+
+Or download first to review / customize:
+
+```bash
+curl -fsSL -o deploy.sh https://raw.githubusercontent.com/elegy00/recing/main/k8s/deploy.sh
+bash deploy.sh
+```
+
+The script handles: downloading manifests → deploying PostgreSQL → initializing schema → creating secrets → deploying web + ingestion.
+
+For manual/advanced control see [docs/deploy-k3s.md](../docs/deploy-k3s.md).
+
 ## Architecture
 
 ```
@@ -16,10 +35,11 @@ recing-ingestion ──► llama-cpp:8085 ────────────�
                         └──────────┘
 ```
 
-Three things you need running:
-1. **postgres** — external in your LAN
-2. **llama-cpp** — external in your LAN (OpenAI-compatible API on :8085)
-3. **Two k8s Deployments** — `recing-web` + `recing-ingestion`
+Prerequisites:
+1. **llama-cpp** — external in your LAN (OpenAI-compatible API on :8085)
+2. **k3s** with `kubectl` configured
+
+PostgreSQL is deployed as part of the stack.
 
 ## Deploy
 
