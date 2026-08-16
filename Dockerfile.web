@@ -7,7 +7,7 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace config + package manifests first (layer caching)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/schema/package.json packages/schema/
 COPY packages/web/package.json packages/web/
 
@@ -18,7 +18,7 @@ RUN pnpm install --frozen-lockfile
 COPY packages/schema/ packages/schema/
 COPY packages/web/ packages/web/
 
-RUN cd packages/schema && pnpm run build 2>/dev/null || true
+RUN cd packages/schema && pnpm run build
 RUN cd packages/web && pnpm run build:client && pnpm run build:server
 
 # ── Production stage ───────────────────────────────────────────
