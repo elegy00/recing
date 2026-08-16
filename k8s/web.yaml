@@ -8,6 +8,9 @@ spec:
     matchLabels:
       app: recing-web
   template:
+    metadata:
+      labels:
+        app: recing-web
     spec:
       containers:
       - name: web
@@ -20,11 +23,6 @@ spec:
             secretKeyRef:
               name: recing-secrets
               key: postgres-url
-        - name: RECING_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: recing-secrets
-              key: api-key
 ---
 apiVersion: v1
 kind: Service
