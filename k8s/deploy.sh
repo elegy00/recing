@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-BRANCH="${DEPLOY_BRANCH:-main}"
+BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
 REPO="elegy00/recing"
 RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 
