@@ -1,51 +1,72 @@
 #!/usr/bin/env bash
 #
 # Bootstrap & deploy recing to k3s
-# Downloads manifests from the GitHub main branch and runs all setup steps.
+# Uses local repo files if running inside the repo, otherwise fetches from GitHub.
 #
 # Usage:
+#   # Inside the repo:
+#   bash k8s/deploy.sh
+#
+#   # Or via curl (downloads from GitHub):
 #   curl -fsSL https://raw.githubusercontent.com/elegy00/recing/main/k8s/deploy.sh | bash
 #
-#   # or download first, then customize:
-#   curl -fsSL -o deploy.sh https://raw.githubusercontent.com/elegy00/recing/main/k8s/deploy.sh
-#   bash deploy.sh
+# Set BRANCH=main to override the GitHub branch used for fetching.
 
 set -euo pipefail
 
-BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
 REPO="elegy00/recing"
-RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
-
-TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH:-main}"
 
 log()  { echo -e "\033[1m>>> $*\033[0m"; }
 info() { echo -e "\033[36m    $*\033[0m"; }
 
-# ── Download manifests ──────────────────────────────────────────
-for f in postgres.yaml web.yaml ingestion.yaml packages/migrate/schema.sql; do
-  url="${RAW}/$f"
-  log "Downloading $f ..."
-  if ! curl -fsSL -o "$TMPDIR/$f" "$url"; then
+# ── Locate source files ─────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCHEMA_FILE="$REPO_ROOT/packages/migrate/schema.sql"
+
+if [ -f "$SCRIPT_DIR/postgres.yaml" ] && [ -f "$SCHEMA_FILE" ]; then
+  SOURCES="$SCRIPT_DIR"
+  SCHEMA="$SCHEMA_FILE"
+  log "Using local repo files"
+else
+  TMPDIR="$(mktemp -d)"
+  trap 'rm -rf "$TMPDIR"' EXIT
+  SOURCES="$TMPDIR"
+  log "Fetching manifests from GitHub (branch '${BRANCH:-main}')"
+  for f in postgres.yaml web.yaml ingestion.yaml; do
+    url="${RAW}/k8s/$f"
+    log "  $f ..."
+    if ! curl -fsSL -o "$SOURCES/$f" "$url"; then
+      echo "ERROR: Failed to fetch $url"
+      exit 1
+    fi
+  done
+  url="${RAW}/packages/migrate/schema.sql"
+  log "  schema.sql ..."
+  if ! curl -fsSL -o "$SOURCES/schema.sql" "$url"; then
     echo "ERROR: Failed to fetch $url"
-    echo "  (branch '$BRANCH' or path '$f' may not exist)"
     exit 1
   fi
-done
+  SCHEMA="$SOURCES/schema.sql"
+fi
 
 # ── Step 1: PostgreSQL ─────────────────────────────────────────
 log "1/5 — Deploying PostgreSQL ..."
-kubectl apply -f "$TMPDIR/postgres.yaml"
+kubectl apply -f "$SOURCES/postgres.yaml"
 kubectl wait --for=condition=ready pod -l app=recing-postgres --timeout=120s
 info "PostgreSQL is ready"
 
 # ── Step 2: Initialize database ─────────────────────────────────
 log "2/5 — Initializing database schema ..."
-kubectl exec -it deployment/recing-postgres -- \
-  psql -U recing -d recing -f /dev/stdin < "$TMPDIR/schema.sql" \
-  || kubectl exec deployment/recing-postgres -- \
-  psql -U recing -d recing -f /dev/stdin < "$TMPDIR/schema.sql"
-info "Schema initialized"
+if kubectl exec deployment/recing-postgres -- psql -U recing -d recing -f /dev/stdin < "$SCHEMA" 2>/dev/null; then
+  info "Schema initialized"
+else
+  # Fallback: -it flag may not work in non-interactive shells
+  info "Retrying without -it ..."
+  kubectl exec deployment/recing-postgres -- psql -U recing -d recing -f /dev/stdin < "$SCHEMA"
+  info "Schema initialized"
+fi
 
 # ── Step 3: Secrets ─────────────────────────────────────────────
 log "3/5 — Creating secrets ..."
@@ -61,8 +82,8 @@ info "Secrets created"
 
 # ── Step 4: Deploy apps ─────────────────────────────────────────
 log "4/5 — Deploying recing-web and recing-ingestion ..."
-kubectl apply -f "$TMPDIR/web.yaml"
-kubectl apply -f "$TMPDIR/ingestion.yaml"
+kubectl apply -f "$SOURCES/web.yaml"
+kubectl apply -f "$SOURCES/ingestion.yaml"
 kubectl rollout status deployment/recing-web --timeout=60s
 kubectl rollout status deployment/recing-ingestion --timeout=60s
 info "Both deployments are rolling out"
