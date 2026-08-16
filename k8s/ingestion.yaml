@@ -16,7 +16,10 @@ spec:
         - name: WEB_API_URL
           value: "http://recing-web:80"
         - name: LLM_ENDPOINT
-          value: "http://192.168.178.71:8085/v1/chat/completions"
+          valueFrom:
+            secretKeyRef:
+              name: recing-secrets
+              key: llm-endpoint
         - name: API_KEY
           valueFrom:
             secretKeyRef:
