@@ -149,16 +149,17 @@ if (isDev) {
       ".jpg": "image/jpeg",
       ".woff2": "font/woff2",
     };
-    return map[ext] || "application/octet-stream";
+    return map[ext] || "text/plain";
   }
 
   app.all("*", async (c) => {
     const urlPath = c.req.path;
-    const filePath = join(__dirname, "..", "dist", "client", urlPath === "/" ? "/index.html" : urlPath);
+    const resolvedPath = urlPath === "/" ? "/index.html" : urlPath;
+    const filePath = join(__dirname, "..", "dist", "client", resolvedPath);
+    const ext = resolvedPath.includes(".") ? resolvedPath.slice(resolvedPath.lastIndexOf(".")) : ".html";
 
     try {
       const data = readFileSync(filePath);
-      const ext = urlPath.slice(urlPath.lastIndexOf("."));
       return new Response(data, {
         headers: { "content-type": mimeType(ext), "cache-control": "public, max-age=31560000, immutable" },
       });
