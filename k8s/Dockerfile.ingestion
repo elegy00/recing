@@ -31,10 +31,14 @@ COPY packages/ingestion/package.json packages/ingestion/
 
 # Install production dependencies only
 RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --shamefully-hoist
 
 # Copy built artifacts
 COPY --from=build /app/packages/ingestion/dist ./dist
+# Schema: pnpm workspace:* resolves to .ts source, override with built dist
+COPY --from=build /app/packages/schema/dist ./node_modules/@recing/schema/dist
+# Write a runtime-compatible package.json for schema
+RUN printf '{"name":"@recing/schema","type":"module","main":"./dist/index.js","exports":{".":{"import":"./dist/index.js"}}}' > ./node_modules/@recing/schema/package.json
 
 EXPOSE 9090
 

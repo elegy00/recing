@@ -31,7 +31,7 @@ COPY packages/web/package.json packages/web/
 
 # Install production dependencies only
 RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --shamefully-hoist
 
 # Copy built artifacts
 COPY --from=build /app/packages/web/dist ./dist
