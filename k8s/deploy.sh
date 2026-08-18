@@ -69,8 +69,31 @@ fi
 
 # ── Step 3: Secrets ─────────────────────────────────────────────
 log "3/5 — Creating secrets ..."
-read -rp "API key (or leave blank for none):" API_KEY
-read -rp "LLM endpoint (e.g. http://192.168.178.71:8085/v1/chat/completions):" LLM_ENDPOINT
+
+# Prompt on /dev/tty (the controlling terminal), not stdin: with
+# `curl ... | bash` stdin is the pipe carrying this script, so a
+# plain `read` would swallow the rest of the script.
+# Without a TTY (CI, cron, ...) the environment variables are used.
+ask() { # ask VAR "prompt" — value comes from $VAR unless entered
+  local var="$1" prompt="$2"
+  if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    read -rp "$prompt" "$var" </dev/tty || true
+  else
+    info "No TTY — using environment variable ${var}"
+  fi
+}
+
+API_KEY="${API_KEY:-}"
+LLM_ENDPOINT="${LLM_ENDPOINT:-}"
+ask API_KEY "API key (or leave blank for none):"
+ask LLM_ENDPOINT "LLM endpoint (e.g. http://192.168.178.71:8085/v1/chat/completions):"
+
+if [ -z "$LLM_ENDPOINT" ]; then
+  echo "ERROR: LLM endpoint is required."
+  echo "       Re-run with a value, e.g."
+  echo "       LLM_ENDPOINT=http://<host>:8085/v1/chat/completions curl -fsSL ${RAW}/k8s/deploy.sh | bash"
+  exit 1
+fi
 
 kubectl create secret generic recing-secrets \
   --from-literal=api-key="${API_KEY:-}" \
