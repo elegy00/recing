@@ -24,8 +24,17 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Copy workspace config + manifests so pnpm can resolve deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/schema/package.json packages/schema/
+COPY packages/ingestion/package.json packages/ingestion/
+
+# Install production dependencies only
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy built artifacts
 COPY --from=build /app/packages/ingestion/dist ./dist
-COPY --from=build /app/packages/schema/dist ./node_modules/schema/dist
 
 EXPOSE 9090
 

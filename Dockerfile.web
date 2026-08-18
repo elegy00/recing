@@ -28,6 +28,16 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Copy workspace config + manifests so pnpm can resolve deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/schema/package.json packages/schema/
+COPY packages/web/package.json packages/web/
+
+# Install production dependencies only
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy built artifacts
 COPY --from=build /app/packages/web/dist ./dist
 
 EXPOSE 3000
