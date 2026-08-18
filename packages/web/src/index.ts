@@ -176,7 +176,10 @@ if (isDev) {
     }
   });
 
-  (await import("@hono/node-server")).serve({ fetch: app.fetch, port: PORT }, () => {
-    console.log(`\n  ✓ Prod server running at http://localhost:${PORT}\n`);
-  });
+  (await import("@hono/node-server")).serve(
+    { fetch: (req) => (app as { fetch: (r: Request, env?: { DATABASE_POOL: pg.Pool }) => Promise<Response> }).fetch(req, { DATABASE_POOL: pool }), port: PORT },
+    () => {
+      console.log(`\n  ✓ Prod server running at http://localhost:${PORT}\n`);
+    }
+  );
 }
