@@ -15,6 +15,7 @@ spec:
       containers:
       - name: ingestion
         image: ghcr.io/elegy00/recing/ingestion:latest
+        imagePullPolicy: Always
         env:
         - name: WEB_API_URL
           value: "http://recing-web:80"

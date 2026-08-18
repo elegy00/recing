@@ -15,6 +15,7 @@ spec:
       containers:
       - name: web
         image: ghcr.io/elegy00/recing/web:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:
