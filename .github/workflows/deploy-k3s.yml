@@ -27,8 +27,8 @@ jobs:
       - name: Update k8s images
         run: |
           V=${{ steps.version.outputs.version }}
-          sed -i "s|recing/web:latest|ghcr.io/${{ github.repository }}/recing/web:$V|" k8s/web.yaml
-          sed -i "s|recing/ingestion:latest|ghcr.io/${{ github.repository }}/recing/ingestion:$V|" k8s/ingestion.yaml
+          sed -i "s|/web:latest|/web:$V|" k8s/web.yaml
+          sed -i "s|/ingestion:latest|/ingestion:$V|" k8s/ingestion.yaml
 
       - name: Deploy to k3s
         uses: azure/setup-kubectl@v3
