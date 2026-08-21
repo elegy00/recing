@@ -1,0 +1,35 @@
+# ── Build stage ────────────────────────────────────────────────
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/migrate/package.json packages/migrate/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages/migrate/ packages/migrate/
+
+RUN cd packages/migrate && pnpm run build
+
+# ── Production stage ───────────────────────────────────────────
+FROM node:22-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy workspace config + manifest so pnpm can resolve deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/migrate/package.json packages/migrate/
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --prod --frozen-lockfile --shamefully-hoist
+
+# Compiled migrator + versioned migration scripts
+COPY --from=build /app/packages/migrate/dist ./dist
+COPY packages/migrate/migrations ./migrations
+
+CMD ["node", "dist/index.js"]

@@ -29,11 +29,17 @@ jobs:
           V=${{ steps.version.outputs.version }}
           sed -i "s|/web:latest|/web:$V|" k8s/web.yaml
           sed -i "s|/ingestion:latest|/ingestion:$V|" k8s/ingestion.yaml
+          sed -i "s|/migrate:latest|/migrate:$V|" k8s/migrate.yaml
 
       - name: Deploy to k3s
         uses: azure/setup-kubectl@v3
       - run: |
           echo "${{ secrets.KUBECONFIG }}" > /tmp/kubeconfig
+          # Run migrations before (re)starting the apps; Job names are
+          # immutable, so delete the previous run first.
+          KUBECONFIG=/tmp/kubeconfig kubectl delete job recing-migrate --ignore-not-found=true
+          KUBECONFIG=/tmp/kubeconfig kubectl apply -f k8s/migrate.yaml
+          KUBECONFIG=/tmp/kubeconfig kubectl wait --for=condition=complete job/recing-migrate --timeout=120s
           KUBECONFIG=/tmp/kubeconfig kubectl apply -f k8s/web.yaml -f k8s/ingestion.yaml
           KUBECONFIG=/tmp/kubeconfig kubectl rollout status deployment/recing-web --timeout=60s
           KUBECONFIG=/tmp/kubeconfig kubectl rollout status deployment/recing-ingestion --timeout=60s

@@ -22,19 +22,16 @@ info() { echo -e "\033[36m    $*\033[0m"; }
 
 # ── Locate source files ─────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SCHEMA_FILE="$REPO_ROOT/packages/migrate/schema.sql"
 
-if [ -f "$SCRIPT_DIR/postgres.yaml" ] && [ -f "$SCHEMA_FILE" ]; then
+if [ -f "$SCRIPT_DIR/postgres.yaml" ] && [ -f "$SCRIPT_DIR/migrate.yaml" ]; then
   SOURCES="$SCRIPT_DIR"
-  SCHEMA="$SCHEMA_FILE"
   log "Using local repo files"
 else
   TMPDIR="$(mktemp -d)"
   trap 'rm -rf "$TMPDIR"' EXIT
   SOURCES="$TMPDIR"
   log "Fetching manifests from GitHub (branch '${BRANCH:-main}')"
-  for f in postgres.yaml web.yaml ingestion.yaml; do
+  for f in postgres.yaml migrate.yaml web.yaml ingestion.yaml; do
     url="${RAW}/k8s/$f"
     log "  $f ..."
     if ! curl -fsSL -o "$SOURCES/$f" "$url"; then
@@ -42,13 +39,6 @@ else
       exit 1
     fi
   done
-  url="${RAW}/packages/migrate/schema.sql"
-  log "  schema.sql ..."
-  if ! curl -fsSL -o "$SOURCES/schema.sql" "$url"; then
-    echo "ERROR: Failed to fetch $url"
-    exit 1
-  fi
-  SCHEMA="$SOURCES/schema.sql"
 fi
 
 # ── Step 1: PostgreSQL ─────────────────────────────────────────
@@ -57,18 +47,8 @@ kubectl apply -f "$SOURCES/postgres.yaml"
 kubectl wait --for=condition=ready pod -l app=recing-postgres --timeout=120s
 info "PostgreSQL is ready"
 
-# ── Step 2: Initialize database ─────────────────────────────────
-log "2/5 — Initializing database schema ..."
-if kubectl exec deployment/recing-postgres -- psql -U recing -d recing -f /dev/stdin < "$SCHEMA" 2>/dev/null; then
-  info "Schema initialized"
-else
-  info "Retrying without -it ..."
-  kubectl exec deployment/recing-postgres -- psql -U recing -d recing -f /dev/stdin < "$SCHEMA"
-  info "Schema initialized"
-fi
-
-# ── Step 3: Secrets ─────────────────────────────────────────────
-log "3/5 — Creating secrets ..."
+# ── Step 2: Secrets ─────────────────────────────────────────────
+log "2/5 — Creating secrets ..."
 
 # Prompt on /dev/tty (the controlling terminal), not stdin: with
 # `curl ... | bash` stdin is the pipe carrying this script, so a
@@ -101,6 +81,14 @@ kubectl create secret generic recing-secrets \
   --from-literal=llm-endpoint="${LLM_ENDPOINT}" \
   --dry-run=client -o yaml | kubectl apply -f -
 info "Secrets created"
+
+# ── Step 3: Database migrations ─────────────────────────────────
+log "3/5 — Running database migrations ..."
+# Job names are immutable in K8S, so delete the previous run first.
+kubectl delete job recing-migrate --ignore-not-found=true
+kubectl apply -f "$SOURCES/migrate.yaml"
+kubectl wait --for=condition=complete job/recing-migrate --timeout=120s
+info "Migrations applied"
 
 # ── Step 4: Deploy apps ─────────────────────────────────────────
 log "4/5 — Deploying recing-web and recing-ingestion ..."

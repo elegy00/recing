@@ -4,12 +4,18 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "migrate:up": "cat schema.sql | docker compose exec -T postgres psql -U recing -d recing",
-    "migrate:down": "echo 'Manual rollback required'"
+    "migrate": "tsx src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
+    "@types/pg": "^8.21.0",
     "tsx": "^4.20.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   }
 }
