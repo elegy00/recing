@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web
+  labels:
+    {{- include "recing.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-web
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-web
+    spec:
+      initContainers:
+        {{- include "recing.migrateInitContainer" . | nindent 8 }}
+      containers:
+      - name: web
+        image: {{ .Values.image.registry }}/web:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.web.port }}
+        env:
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: postgres-url
+        resources:
+          {{- toYaml .Values.web.resources | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-web
+  labels:
+    {{- include "recing.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-web
+  ports:
+  - port: 80
+    targetPort: {{ .Values.web.port }}
