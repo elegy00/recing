@@ -44,8 +44,25 @@ jobs:
         run: POSTGRES_URL=postgresql://recing:recing@localhost:5432/recing pnpm -C packages/migrate migrate
       - run: pnpm test
 
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Helm
+        run: |
+          HELM_VERSION=v3.15.2
+          curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar xz
+          sudo mv linux-amd64/helm /usr/local/bin/helm
+      - name: Lint chart
+        run: helm lint helm/recing/
+      - name: Template render (verify)
+        run: |
+          helm template test-release helm/recing/ \
+            --set secrets.llmEndpoint=https://api.example.com \
+            --set secrets.apiKey=dummy > /dev/null
+
   build:
-    needs: test
+    needs: [test, helm]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
