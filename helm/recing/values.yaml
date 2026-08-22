@@ -1,0 +1,67 @@
+# ── Images ─────────────────────────────────────────────────────
+image:
+  registry: ghcr.io/elegy00/recing
+  tag: latest
+  pullPolicy: Always
+
+# Migrate image is built separately (Dockerfile.migrate)
+migrate:
+  tag: latest
+
+# ── Web ─────────────────────────────────────────────────────────
+web:
+  replicaCount: 1
+  port: 3000
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── Ingestion ───────────────────────────────────────────────────
+ingestion:
+  replicaCount: 1
+  llmModel: "qwen3.6"
+  maxContentChars: "60000"
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── PostgreSQL (in-cluster) ─────────────────────────────────────
+# Set enabled: false to use an external database and provide
+# secrets.postgresUrl explicitly.
+postgres:
+  enabled: true
+  user: recing
+  password: recing
+  database: recing
+  storage: 5Gi
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# ── Secrets ─────────────────────────────────────────────────────
+# Override via --set or a private -f values file; never commit real values.
+secrets:
+  apiKey: ""
+  llmEndpoint: ""
+  # Leave empty to auto-derive from postgres values above.
+  # Set explicitly when postgres.enabled is false.
+  postgresUrl: ""
+
+# ── Ingress ─────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  host: recing.lan
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web

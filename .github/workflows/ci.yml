@@ -40,8 +40,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - name: Apply database schema
-        run: psql "postgresql://recing:recing@localhost:5432/recing" -f packages/migrate/schema.sql
+      - name: Run database migrations
+        run: POSTGRES_URL=postgresql://recing:recing@localhost:5432/recing pnpm -C packages/migrate migrate
       - run: pnpm test
 
   build:
@@ -86,3 +86,13 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/ingestion:${{ steps.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/ingestion:latest
+
+      - name: Build & push migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: k8s/Dockerfile.migrate
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/migrate:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/migrate:latest

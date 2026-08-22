@@ -1,0 +1,29 @@
+{
+  "name": "@recing/pi-track",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pi extension that tracks per-session performance stats (prompt/finish timestamps, per-call token usage, compactions) into pi_track/*.md",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ]
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.2",
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

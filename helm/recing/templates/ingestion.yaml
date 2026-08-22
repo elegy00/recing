@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ingestion
+  labels:
+    {{- include "recing.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.ingestion.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-ingestion
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-ingestion
+    spec:
+      initContainers:
+        {{- include "recing.migrateInitContainer" . | nindent 8 }}
+      containers:
+      - name: ingestion
+        image: {{ .Values.image.registry }}/ingestion:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: WEB_API_URL
+          value: "http://{{ .Release.Name }}-web:80"
+        - name: LLM_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: llm-endpoint
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: api-key
+        - name: LLM_MODEL
+          value: {{ .Values.ingestion.llmModel | quote }}
+        - name: MAX_CONTENT_CHARS
+          value: {{ .Values.ingestion.maxContentChars | quote }}
+        resources:
+          {{- toYaml .Values.ingestion.resources | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ingestion
+  labels:
+    {{- include "recing.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-ingestion
+  ports:
+  - port: 9090
+    targetPort: 9090
