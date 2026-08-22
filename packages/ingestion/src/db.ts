@@ -9,9 +9,23 @@ function getConnectionString(): string {
 /** Get or create the Postgres connection pool. */
 export function getDb(): pg.Pool {
   if (!pool) {
-    pool = new pg.Pool({ connectionString: getConnectionString() });
+    const connectionString = getConnectionString();
+    pool = new pg.Pool({ connectionString });
+    // Log the target (password masked) so a wrong/missing POSTGRES_URL is visible immediately.
+    console.warn(`[db] Connecting to ${maskPassword(connectionString)}`);
   }
   return pool;
+}
+
+/** Mask the password in a connection URL for safe logging. */
+export function maskPassword(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.password) u.password = "***";
+    return u.toString();
+  } catch {
+    return url;
+  }
 }
 
 /** Close the pool (for graceful shutdown). */

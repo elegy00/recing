@@ -5,6 +5,7 @@ loadDotenv({ path: new URL("../../../.env", import.meta.url) });
 
 import { runWorker } from "./worker.js";
 import { closeDb } from "./db.js";
+import { describeError } from "./error-utils.js";
 import { fetchUrl } from "./url-fetcher.js";
 import { extractRecipe } from "./llm-extraction.js";
 
@@ -136,7 +137,7 @@ async function main(): Promise<void> {
       try {
         await cmdFetch(args[1]);
       } catch (error) {
-        console.error(`\n❌ Failed: ${error}`);
+        console.error(`\n❌ Failed: ${describeError(error)}`);
         await closeDb();
         process.exit(1);
       }

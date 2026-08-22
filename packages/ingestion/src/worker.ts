@@ -2,6 +2,7 @@ import { getDb } from "./db.js";
 import { fetchUrl } from "./url-fetcher.js";
 import { RecipeFetchException } from "./recipe-fetch-exception.js";
 import { extractRecipe, type ExtractionConfig, LlmExtractionError } from "./llm-extraction.js";
+import { describeError } from "./error-utils.js";
 
 import type { Pool } from "pg";
 
@@ -71,11 +72,15 @@ async function processJob(db: Pool, config: WorkerConfig, job: PendingJob): Prom
 
     console.warn(`[job:${jobId}] Failed (${errorCode}): ${errorMessage}`);
 
-    // Save error
-    await db.query(
-      "UPDATE jobs SET status = 'FAILED', result = NULL, error = $2, updated_at = NOW() WHERE id = $1",
-      [jobId, errorMessage]
-    );
+    // Save error (best effort — a DB failure here must not mask the original job error)
+    try {
+      await db.query(
+        "UPDATE jobs SET status = 'FAILED', result = NULL, error = $2, updated_at = NOW() WHERE id = $1",
+        [jobId, errorMessage]
+      );
+    } catch (dbError) {
+      console.error(`[job:${jobId}] Failed to persist job error: ${describeError(dbError)}`);
+    }
 
     return { jobId, url, success: false, error: `${errorCode}: ${errorMessage}` };
   }
@@ -122,7 +127,7 @@ export function runWorker(config: WorkerConfig): AbortController {
           await sleep(pollIntervalMs);
         }
       } catch (error) {
-        console.error(`[worker] Poll error: ${error}`);
+        console.error(`[worker] Poll error: ${describeError(error)}`);
         if (!signal.aborted) {
           await sleep(pollIntervalMs);
         }
