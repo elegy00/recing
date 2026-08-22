@@ -59,7 +59,8 @@ jobs:
         run: |
           helm template test-release helm/recing/ \
             --set secrets.llmEndpoint=https://api.example.com \
-            --set secrets.apiKey=dummy > /dev/null
+            --set secrets.apiKey=dummy \
+            -n recing > /dev/null
 
   build:
     needs: [test, helm]
