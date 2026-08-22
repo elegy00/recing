@@ -3,6 +3,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Release.Name }}-postgres
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "recing.labels" . | nindent 4 }}
 spec:
@@ -16,6 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-postgres
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "recing.labels" . | nindent 4 }}
 spec:
@@ -61,6 +63,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-postgres
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "recing.labels" . | nindent 4 }}
 spec:
