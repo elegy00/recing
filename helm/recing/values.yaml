@@ -62,6 +62,6 @@ secrets:
 # ── Ingress ─────────────────────────────────────────────────────
 ingress:
   enabled: true
-  host: recing.lan
+  host: recing.home.arpa
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
