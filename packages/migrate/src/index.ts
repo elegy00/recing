@@ -62,7 +62,7 @@ export async function runMigrations(
   const migrations = await loadMigrations(migrationsDir);
   const client = await pool.connect();
   try {
-    await client.query("SELECT pg_advisory_lock('recing_migrate')");
+    await client.query("SELECT pg_advisory_lock(42)");
     try {
       await client.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -94,7 +94,7 @@ export async function runMigrations(
       if (count === 0) log("Database is up to date.");
       return count;
     } finally {
-      await client.query("SELECT pg_advisory_unlock('recing_migrate')");
+      await client.query("SELECT pg_advisory_unlock(42)");
     }
   } finally {
     client.release();

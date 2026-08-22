@@ -33,7 +33,7 @@ function makeMigrationsDir(files: Record<string, string>): string {
 }
 
 async function tableExists(pool: pg.Pool, table: string): Promise<boolean> {
-  const res = await pool.query("SELECT to_regclass('public.$1') AS t", [table]);
+  const res = await pool.query("SELECT to_regclass($1) AS t", [`public.${table}`]);
   return res.rows[0].t !== null;
 }
 
