@@ -24,6 +24,11 @@ spec:
         env:
         - name: WEB_API_URL
           value: "http://{{ .Release.Name }}-web:80"
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: postgres-url
         - name: LLM_ENDPOINT
           valueFrom:
             secretKeyRef:

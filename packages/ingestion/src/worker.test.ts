@@ -139,6 +139,39 @@ describe("runWorker", () => {
     expect(params?.[1]).toBe("Error: network error");
     expect(sqlContains("UPDATE jobs SET status = 'COMPLETED'")).toBe(false);
   });
+
+  it("reports the original job error even when persisting the failure throws", async () => {
+    // Simulates a DB outage: the FAILED-status update itself rejects (e.g. with an
+    // AggregateError from Node's happy-eyeballs). The worker must log the persist
+    // problem, not surface it as a "Poll error" that masks the job failure.
+    // Query sequence: SELECT pending → UPDATE PROCESSING → UPDATE FAILED (rejects).
+    // Later polls fall back to the default resolved mock from beforeEach.
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: "j1", url: "http://x.com" }] });
+    mockFetchUrl.mockRejectedValue(new Error("network error"));
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 }); // UPDATE PROCESSING
+    const persistError = new AggregateError(
+      [Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" })],
+    );
+    mockQuery.mockRejectedValueOnce(persistError); // UPDATE FAILED
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const controller = runWorker({ ...extractionConfig, pollIntervalMs: 10 });
+    setTimeout(() => controller.abort(), 100);
+
+    await new Promise<void>((resolve) => {
+      const check = () => controller.signal.aborted ? resolve() : setTimeout(check, 20);
+      check();
+    });
+
+    const logged = errorSpy.mock.calls.map((c) => c.join(" "));
+    expect(logged.some((l) => l.includes("Failed to persist job error"))).toBe(true);
+    expect(logged.some((l) => l.includes("Poll error"))).toBe(false);
+    // The expanded AggregateError must be diagnosable, not just "AggregateError"
+    expect(logged.join("\n")).toContain("ECONNREFUSED");
+
+    errorSpy.mockRestore();
+  });
 });
 
 describe("closeDb", () => {
