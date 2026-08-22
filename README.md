@@ -13,8 +13,7 @@ recing/
 ├── k8s/                  k3s deployment manifests
 ├── .github/workflows/    CI/CD (build, test, publish images)
 └── docs/
-    ├── dev-local.md      Local development guide
-    └── deploy-k3s.md     k3s deployment guide
+    └── dev-local.md      Local development guide
 ```
 
 ## How it works
@@ -46,10 +45,8 @@ See [`docs/dev-local.md`](./docs/dev-local.md) for details.
 # Option A: manually
 pnpm install && cd packages/web && pnpm build && pnpm start  # local prod
 
-# Option B: CI auto-builds images → GHCR → k3s (see guides below)
+# Option B: CI auto-builds images → GHCR → k3s
 ```
-
-See [`docs/deploy-k3s.md`](./docs/deploy-k3s.md) for full instructions.
 
 ## Configuration
 

@@ -17,8 +17,6 @@ bash deploy.sh
 
 The script handles: downloading manifests → deploying PostgreSQL → initializing schema → creating secrets → deploying web + ingestion.
 
-For manual/advanced control see [docs/deploy-k3s.md](../docs/deploy-k3s.md).
-
 ## Architecture
 
 ```
