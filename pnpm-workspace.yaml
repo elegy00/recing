@@ -1,6 +1,5 @@
 packages:
   - "packages/*"
 allowBuilds:
-  esbuild: false
-  mongodb-memory-server: set this to true or false
-  mongodb-memory-server-global: set this to true or false
+  "@google/genai": true
+  protobufjs: true
