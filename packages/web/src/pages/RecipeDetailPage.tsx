@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getRecipe } from "../api";
+import { getRecipe, deleteRecipe, retryRecipe } from "../api";
 import type { Job } from "../api";
 
 type ViewMode = "detail" | "cook";
@@ -16,6 +16,9 @@ export default function RecipeDetailPage() {
   const [mode, setMode] = useState<ViewMode>("detail");
   const [currentStep, setCurrentStep] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
+
+  // Confirmation modal state for delete/reset actions
+  const [confirmAction, setConfirmAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +57,28 @@ export default function RecipeDetailPage() {
       else next.add(idx);
       return next;
     });
+  }
+
+  async function handleDelete() {
+    try {
+      await deleteRecipe(id!);
+      navigate("/recipes", { replace: true });
+    } catch (err) {
+      console.error("Delete failed:", err);
+      setConfirmAction(null);
+    }
+  }
+
+  async function handleReset() {
+    try {
+      await retryRecipe(id!);
+      // Update local state to reflect the reset
+      setJob((prev) => prev ? { ...prev, status: "PENDING", result: null, error: null } : null);
+      setConfirmAction(null);
+    } catch (err) {
+      console.error("Reset failed:", err);
+      setConfirmAction(null);
+    }
   }
 
   function hasNext() {
@@ -211,10 +236,57 @@ export default function RecipeDetailPage() {
         </p>
       </div>
 
+      {/* Action buttons */}
+      <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
+        {job.status === "COMPLETED" && (
+          <>
+            <button onClick={() => setConfirmAction("reset")} className="btn" style={{ border: "1px solid #e65100", color: "#e65100", fontSize: 14 }}>
+              ↻ Re-process Recipe
+            </button>
+            <button onClick={() => setConfirmAction("delete")} className="btn" style={{ border: "1px solid #c62828", color: "#c62828", fontSize: 14 }}>
+              🗑 Delete Recipe
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Back button */}
-      <button onClick={() => navigate("/recipes")} style={{ marginTop: 24, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 14 }}>
+      <button onClick={() => navigate("/recipes")} style={{ marginTop: 16, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 14 }}>
         ← Back to Recipes
       </button>
+
+      {/* Confirmation modal */}
+      {confirmAction && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="recipe-card" style={{ maxWidth: 400, padding: 24 }}>
+            {confirmAction === "delete" && (
+              <>
+                <h3 style={{ margin: "0 0 8px", fontFamily: "'EB Garamond',Georgia,serif" }}>Delete Recipe?</h3>
+                <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
+                  This will permanently remove "{ext?.recipeName}". This action cannot be undone.
+                </p>
+              </>
+            )}
+            {confirmAction === "reset" && (
+              <>
+                <h3 style={{ margin: "0 0 8px", fontFamily: "'EB Garamond',Georgia,serif" }}>Re-process Recipe?</h3>
+                <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
+                  This will reset "{ext?.recipeName}" to pending so it gets re-processed from the source URL. The current extracted data will be cleared.
+                </p>
+              </>
+            )}
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmAction(null)} className="btn">Cancel</button>
+              {confirmAction === "delete" && (
+                <button onClick={handleDelete} className="btn btn-primary" style={{ background: "#c62828" }}>Delete</button>
+              )}
+              {confirmAction === "reset" && (
+                <button onClick={handleReset} className="btn btn-primary">Re-process</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

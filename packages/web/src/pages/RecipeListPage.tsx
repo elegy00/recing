@@ -59,21 +59,38 @@ export default function RecipeListPage() {
   function renderCard(job: Job) {
     const ext = job.result ?? null;
 
-    // Completed valid recipe → clickable link to detail page
+    // Completed valid recipe → clickable link to detail page with actions
     if (job.status === "COMPLETED" && ext?.recipeName) {
       return (
-        <Link key={job._id} to={`/recipes/${job._id}`} className="recipe-card-link">
-          <div className="recipe-card">
-            {ext.prepTime || ext.cookTime ? (
-              <div style={{ marginBottom: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-                {ext.prepTime && <>Prep: {ext.prepTime} · </>}
-                {ext.cookTime && <>Cook: {ext.cookTime}</>}
-              </div>
-            ) : null}
-            <h3 className="recipe-name">{ext.recipeName}</h3>
-            <p className="recipe-url" title={job.url}>{new URL(job.url).hostname}</p>
+        <div key={job._id} style={{ position: "relative" }}>
+          <Link to={`/recipes/${job._id}`} className="recipe-card-link">
+            <div className="recipe-card">
+              {ext.prepTime || ext.cookTime ? (
+                <div style={{ marginBottom: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+                  {ext.prepTime && <>Prep: {ext.prepTime} · </>}
+                  {ext.cookTime && <>Cook: {ext.cookTime}</>}
+                </div>
+              ) : null}
+              <h3 className="recipe-name">{ext.recipeName}</h3>
+              <p className="recipe-url" title={job.url}>{new URL(job.url).hostname}</p>
+            </div>
+          </Link>
+          {/* Action buttons */}
+          <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+            <button
+              className="delete-btn"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRetry(job._id); }}
+              title="Re-process recipe from source URL"
+              style={{ position: "static", fontSize: 13 }}
+            >↻</button>
+            <button
+              className="delete-btn"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(job._id); }}
+              title="Delete this recipe"
+              style={{ position: "static" }}
+            >×</button>
           </div>
-        </Link>
+        </div>
       );
     }
 

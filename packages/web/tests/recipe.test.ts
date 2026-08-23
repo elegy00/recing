@@ -176,6 +176,23 @@ describe("PATCH /api/recipes/:id/retry", () => {
     const job = await queryOne<{ status: string }>("SELECT status FROM jobs WHERE id = $1", [jobId]);
     expect(job?.status).toBe("PENDING");
   });
+
+  it("resets a COMPLETED (correctly ingested) job back to PENDING for re-processing", async () => {
+    const jobId = crypto.randomUUID();
+    await query(
+      "INSERT INTO jobs (id, url, status, result) VALUES ($1, $2, $3, $4)",
+      [jobId, "http://example.com/recipe", "COMPLETED", '{"status":"extracted","recipeName":"Test Recipe","ingredients":[{"name":"flour"}],"instructions":[{"text":"Mix"}]}']
+    );
+
+    const res = await req("PATCH", `/api/recipes/${jobId}/retry`);
+    expect(res.status).toBe(200);
+
+    const job = await queryOne<{ status: string; result: unknown }>(
+      "SELECT status, result FROM jobs WHERE id = $1", [jobId]
+    );
+    expect(job?.status).toBe("PENDING");
+    expect(job?.result).toBeNull();
+  });
 });
 
 // ─── _id field in responses ──────────────────────────────────────────────────
