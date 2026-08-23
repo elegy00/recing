@@ -127,6 +127,7 @@
         "type": "object",
         "properties": {
           "quantity": {
+            "description": "Amount of the ingredient as written in the source (e.g. \"2\", \"300\"). Extract it from originalText when present; use null only if the source gives no amount.",
             "anyOf": [
               {
                 "anyOf": [
@@ -144,6 +145,7 @@
             ]
           },
           "unit": {
+            "description": "Measure/unit of the ingredient as written in the source (e.g. \"g\", \"cups\", \"dl\"). Use null when there is none.",
             "anyOf": [
               {
                 "type": "string"

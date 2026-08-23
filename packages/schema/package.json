@@ -14,7 +14,7 @@
     "build": "tsc --project tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen-json-schema": "node --experimental-strip-types scripts/gen-json-schema.ts",
+    "gen-json-schema": "tsx scripts/gen-json-schema.ts",
     "prebuild": "pnpm run gen-json-schema"
   },
   "description": "Recipe domain types, Zod schemas, and validation. To regenerate the JSON Schema from the Zod schema after schema changes: pnpm run gen-json-schema",
@@ -22,6 +22,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "tsx": "^4.20.3",
     "vitest": "^4.1.8"
   }
 }
