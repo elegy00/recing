@@ -225,7 +225,7 @@ export default function RecipeDetailPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
             {ext?.recipeName}
@@ -236,7 +236,7 @@ export default function RecipeDetailPage() {
         </div>
         <button
           onClick={startCooking}
-          className="rounded-md bg-[var(--accent)] px-8 py-3 text-base font-medium text-white transition-opacity hover:opacity-90"
+          className="w-fit whitespace-nowrap rounded-md bg-[var(--accent)] px-8 py-3 text-base font-medium text-white transition-opacity hover:opacity-90"
         >
           🍳 Start Cooking
         </button>

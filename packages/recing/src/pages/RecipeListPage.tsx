@@ -14,7 +14,7 @@ const allFilters: { key: FilterKey; label: string }[] = [
 ];
 
 function statusBadgeClass(status: string): string {
-  const base = "absolute right-4 top-4 rounded-full px-2.5 py-[3px] text-xs font-medium uppercase tracking-wide";
+  const base = "rounded-full px-2.5 py-[3px] text-xs font-medium uppercase tracking-wide";
   switch (status) {
     case "COMPLETED": return `${base} bg-green-100 text-green-700`;
     case "PENDING": return `${base} bg-orange-100 text-orange-600`;
@@ -97,7 +97,7 @@ export default function RecipeListPage() {
             </p>
           </Link>
           {/* Action buttons */}
-          <div className="absolute right-16 top-4 flex gap-1">
+          <div className="absolute right-4 top-4 flex gap-1">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRetry(job._id); }}
               title="Re-process recipe from source URL"
@@ -120,14 +120,16 @@ export default function RecipeListPage() {
     // Non-completed / invalid → show as-is with delete button
     return (
       <div key={job._id} className="relative rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-sm">
-        <span className={statusBadgeClass(job.status)}>{job.status}</span>
-        <button
-          onClick={() => handleDelete(job._id)}
-          title="Delete"
-          className="absolute right-16 top-4 rounded p-[2px] text-lg leading-none transition-colors hover:bg-red-50 hover:text-[var(--accent)]"
-        >
-          ×
-        </button>
+        <div className="absolute right-4 top-4 flex items-center gap-2">
+          <button
+            onClick={() => handleDelete(job._id)}
+            title="Delete"
+            className="rounded p-[2px] text-lg leading-none transition-colors hover:bg-red-50 hover:text-[var(--accent)]"
+          >
+            ×
+          </button>
+          <span className={statusBadgeClass(job.status)}>{job.status}</span>
+        </div>
 
         {ext?.recipeName ? (
           <>

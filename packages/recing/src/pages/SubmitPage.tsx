@@ -56,7 +56,7 @@ export default function SubmitPage() {
           <button
             type="submit"
             disabled={status === "submitting" || !url.trim()}
-            className="rounded-md bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
           >
             Submit →
           </button>
