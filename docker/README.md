@@ -5,13 +5,13 @@
 Download and run the bootstrap script — it pulls all manifests from GitHub and walks you through setup:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/elegy00/recing/main/k8s/deploy.sh | bash
+curl -fsSL https://raw.githubusercontent.com/elegy00/recing/main/docker/deploy.sh | bash
 ```
 
 Or download first to review / customize:
 
 ```bash
-curl -fsSL -o deploy.sh https://raw.githubusercontent.com/elegy00/recing/main/k8s/deploy.sh
+curl -fsSL -o deploy.sh https://raw.githubusercontent.com/elegy00/recing/main/docker/deploy.sh
 bash deploy.sh
 ```
 
@@ -43,8 +43,8 @@ PostgreSQL is deployed as part of the stack.
 
 ```bash
 # 1. Build & push images
-docker build -t <registry>/recing/web:latest        -f k8s/Dockerfile.web .
-docker build -t <registry>/recing/ingestion:latest  -f k8s/Dockerfile.ingestion .
+docker build -t <registry>/recing/web:latest        -f docker/Dockerfile.web .
+docker build -t <registry>/recing/ingestion:latest  -f docker/Dockerfile.ingestion .
 docker push <registry>/recing/web:latest
 docker push <registry>/recing/ingestion:latest
 
@@ -54,8 +54,8 @@ kubectl create secret generic recing-secrets \
   --from-literal=postgres-url="postgresql://user:pass@postgres-host:5432/recing"
 
 # 3. Apply
-kubectl apply -f k8s/web.yaml
-kubectl apply -f k8s/ingestion.yaml
+kubectl apply -f docker/web.yaml
+kubectl apply -f docker/ingestion.yaml
 
 # 4. Verify
 kubectl get pods

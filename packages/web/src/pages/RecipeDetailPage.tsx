@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { getRecipe, deleteRecipe, retryRecipe } from "../api";
-import type { Job } from "../api";
+import { useParams, useNavigate } from "@tanstack/react-router";
+import { getRecipe, deleteRecipe, retryRecipe } from "../api/server-functions";
+import type { Job } from "../types";
 
 type ViewMode = "detail" | "cook";
 
 export default function RecipeDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id: string };
   const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,9 @@ export default function RecipeDetailPage() {
       try {
         setLoading(true);
         setError(null);
-        setJob(await getRecipe(id));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
+        const data = (await (getRecipe as any)({ data: { id } })) as { recipe: Job | null; error?: string };
+        setJob(data.recipe);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load recipe");
       } finally {
@@ -35,7 +37,7 @@ export default function RecipeDetailPage() {
     })();
   }, [id]);
 
-  // Extraction data (stored directly on result in MongoDB)
+  // Extraction data
   const ext = job?.result ?? null;
 
   function startCooking() {
@@ -61,8 +63,9 @@ export default function RecipeDetailPage() {
 
   async function handleDelete() {
     try {
-      await deleteRecipe(id!);
-      navigate("/recipes", { replace: true });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
+      await (deleteRecipe as any)({ data: { id: id! } });
+      navigate({ to: "/recipes", replace: true });
     } catch (err) {
       console.error("Delete failed:", err);
       setConfirmAction(null);
@@ -71,9 +74,9 @@ export default function RecipeDetailPage() {
 
   async function handleReset() {
     try {
-      await retryRecipe(id!);
-      // Update local state to reflect the reset
-      setJob((prev) => prev ? { ...prev, status: "PENDING", result: null, error: null } : null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
+      await (retryRecipe as any)({ data: { id: id! } });
+      setJob((prev) => (prev ? { ...prev, status: "PENDING", result: null, error: null } : null));
       setConfirmAction(null);
     } catch (err) {
       console.error("Reset failed:", err);
@@ -92,22 +95,24 @@ export default function RecipeDetailPage() {
   // ─── Loading / Error states ──────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="container">
-        <p style={{ color: "var(--text-secondary)" }}>
-          <span className="loading-spinner" /> Loading recipe...
-        </p>
+      <div className="mx-auto max-w-4xl px-6 py-12 text-[var(--text-secondary)]">
+        <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--accent)] align-middle" />
+        Loading recipe...
       </div>
     );
   }
 
   if (error || !job) {
     return (
-      <div className="container">
-        <h1 className="page-title">Recipe Not Found</h1>
-        <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
-          {error || "This recipe could not be found."}
-        </p>
-        <button onClick={() => navigate("/recipes")} className="btn btn-primary">
+      <div className="mx-auto max-w-4xl px-6 py-12">
+        <h1 className="mb-6 text-3xl font-bold" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+          Recipe Not Found
+        </h1>
+        <p className="mb-6 text-[var(--text-secondary)]">{error || "This recipe could not be found."}</p>
+        <button
+          onClick={() => navigate({ to: "/recipes" })}
+          className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+        >
           ← Back to Recipes
         </button>
       </div>
@@ -122,53 +127,94 @@ export default function RecipeDetailPage() {
     const progressPct = Math.round(((currentStep + 1) / total) * 100);
 
     return (
-      <div className="container">
+      <div className="mx-auto max-w-4xl px-6 py-12">
         {/* Cook header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <button onClick={exitCooking} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 14 }}>
+        <div className="mb-6 flex items-center justify-between">
+          <button
+            onClick={exitCooking}
+            className="rounded border border-[var(--border)] bg-white px-4 py-2 text-sm transition-colors hover:bg-gray-50"
+          >
             ← Exit Cook Mode
           </button>
-          <span style={{ color: "var(--text-secondary)", fontSize: 14 }}>{progressPct}%</span>
+          <span className="text-sm text-[var(--text-secondary)]">{progressPct}%</span>
         </div>
 
         {/* Progress bar */}
-        <div style={{ background: "var(--border)", borderRadius: 999, height: 6, marginBottom: 32 }}>
-          <div style={{ background: "var(--accent)", borderRadius: 999, height: 6, width: `${progressPct}%`, transition: "width .3s" }} />
+        <div className="mb-8 h-1.5 rounded-full bg-[var(--border)]">
+          <div
+            className="h-1.5 rounded-full bg-[var(--accent)] transition-all duration-300"
+            style={{ width: `${progressPct}%` }}
+          />
         </div>
 
         {/* Step card */}
-        <div className="recipe-card" style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <span style={{ fontSize: 13, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".5px" }}>Step {currentStep + 1} of {total}</span>
+        <div className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">
+              Step {currentStep + 1} of {total}
+            </span>
             {step?.timer && (
-              <span className="badge badge-completed">⏱ {step.timer}</span>
+              <span className="rounded-full bg-green-100 px-2.5 py-[3px] text-xs font-medium text-green-700">
+                ⏱ {step.timer}
+              </span>
             )}
           </div>
-          <p style={{ fontSize: 20, lineHeight: 1.6 }}>{step.text}</p>
+          <p className="text-lg leading-relaxed">{step.text}</p>
         </div>
 
         {/* Ingredient checklist */}
-        <h3 style={{ marginBottom: 12, fontFamily: "'EB Garamond',Georgia,serif", fontSize: 20 }}>Ingredients for this step</h3>
+        <h3 className="mb-3 text-xl font-bold" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+          Ingredients for this step
+        </h3>
         {(ext?.ingredients ?? []).map((ing, idx) => (
           <label
             key={idx}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", cursor: "pointer", color: checkedIngredients.has(idx) ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: checkedIngredients.has(idx) ? "line-through" : "none", transition: "color .15s" }}
+            className={`flex cursor-pointer items-center gap-2.5 py-2 transition-colors ${
+              checkedIngredients.has(idx) ? "text-[var(--text-secondary)] line-through" : "text-[var(--text-primary)]"
+            }`}
           >
-            <input type="checkbox" checked={checkedIngredients.has(idx)} onChange={() => toggleIngredient(idx)} style={{ accentColor: "var(--accent)" }} />
-            <span>{ing.quantity && `${ing.quantity} `}{ing.unit && `${ing.unit} `}{ing.name}</span>
+            <input
+              type="checkbox"
+              checked={checkedIngredients.has(idx)}
+              onChange={() => toggleIngredient(idx)}
+              className="accent-[var(--accent)]"
+            />
+            <span>
+              {ing.quantity && `${ing.quantity} `}
+              {ing.unit && `${ing.unit} `}
+              {ing.name}
+            </span>
           </label>
         ))}
 
         {/* Navigation */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
-          <button disabled={!hasPrev()} onClick={() => setCurrentStep((s) => s - 1)} className="btn" style={{ opacity: hasPrev() ? 1 : 0.4, cursor: hasPrev() ? "pointer" : "not-allowed" }}>
+        <div className="mt-8 flex items-center justify-between">
+          <button
+            disabled={!hasPrev()}
+            onClick={() => setCurrentStep((s) => s - 1)}
+            className={`rounded border border-[var(--border)] bg-white px-4 py-2 text-sm transition-opacity ${
+              hasPrev() ? "cursor-pointer hover:bg-gray-50" : "cursor-not-allowed opacity-40"
+            }`}
+          >
             ← Previous
           </button>
-          <span style={{ color: "var(--text-secondary)", alignSelf: "center", fontSize: 14 }}>{currentStep + 1} / {total}</span>
+          <span className="text-sm text-[var(--text-secondary)]">
+            {currentStep + 1} / {total}
+          </span>
           {hasNext() ? (
-            <button onClick={() => setCurrentStep((s) => s + 1)} className="btn btn-primary">Next Step →</button>
+            <button
+              onClick={() => setCurrentStep((s) => s + 1)}
+              className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Next Step →
+            </button>
           ) : (
-            <button onClick={exitCooking} className="btn btn-primary" style={{ background: "#2e7d32" }}>✓ Finished!</button>
+            <button
+              onClick={exitCooking}
+              className="rounded bg-green-700 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              ✓ Finished!
+            </button>
           )}
         </div>
       </div>
@@ -177,23 +223,28 @@ export default function RecipeDetailPage() {
 
   // ─── Normal detail view ──────────────────────────────────────────────────
   return (
-    <div className="container">
+    <div className="mx-auto max-w-4xl px-6 py-12">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="page-title">{ext?.recipeName}</h1>
+          <h1 className="text-3xl font-bold" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+            {ext?.recipeName}
+          </h1>
           {ext?.description && (
-            <p className="page-desc">{ext.description}</p>
+            <p className="mt-2 text-[var(--text-secondary)] leading-relaxed">{ext.description}</p>
           )}
         </div>
-        <button onClick={startCooking} className="btn btn-primary" style={{ fontSize: 16, padding: "12px 32px" }}>
+        <button
+          onClick={startCooking}
+          className="w-fit whitespace-nowrap rounded-md bg-[var(--accent)] px-8 py-3 text-base font-medium text-white transition-opacity hover:opacity-90"
+        >
           🍳 Start Cooking
         </button>
       </div>
 
       {/* Meta info */}
       {(ext?.prepTime || ext?.cookTime || ext?.totalTime || ext?.servings) && (
-        <div style={{ display: "flex", gap: 24, marginBottom: 32, flexWrap: "wrap" }}>
+        <div className="mb-8 flex flex-wrap gap-6">
           {ext.prepTime && <span>🥄 Prep: {ext.prepTime}</span>}
           {ext.cookTime && <span>🔥 Cook: {ext.cookTime}</span>}
           {ext.totalTime && <span>⏱ Total: {ext.totalTime}</span>}
@@ -202,33 +253,42 @@ export default function RecipeDetailPage() {
       )}
 
       {/* Ingredients */}
-      <h2 style={{ fontFamily: "'EB Garamond',Georgia,serif", fontSize: 24, marginBottom: 16 }}>Ingredients</h2>
-      <ul style={{ listStyle: "none", margin: "0 0 32px" }}>
+      <h2 className="mb-4 text-2xl font-bold" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+        Ingredients
+      </h2>
+      <ul className="mb-8 list-none space-y-3 border-b border-[var(--border)] pb-6">
         {(ext?.ingredients ?? []).map((ing, idx) => (
-          <li key={idx} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 15 }}>
+          <li key={idx} className="py-1 text-sm leading-relaxed">
             {ing.quantity && <strong>{ing.quantity}</strong>}{" "}
             {ing.unit && <em>{ing.unit}</em>}{" "}
             {ing.name}
-            {ing.note && <span style={{ color: "var(--text-secondary)" }}> — {ing.note}</span>}
+            {ing.note && <span className="ml-1 text-[var(--text-secondary)]">— {ing.note}</span>}
           </li>
         ))}
       </ul>
 
       {/* Instructions */}
-      <h2 style={{ fontFamily: "'EB Garamond',Georgia,serif", fontSize: 24, marginBottom: 16 }}>Instructions</h2>
-      <ol style={{ margin: "0 0 32px", paddingLeft: 24 }}>
+      <h2 className="mb-4 text-2xl font-bold" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+        Instructions
+      </h2>
+      <ol className="mb-8 list-decimal space-y-3 pl-5">
         {(ext?.instructions ?? []).map((step) => (
-          <li key={step.stepNumber} style={{ padding: "8px 0", lineHeight: 1.6, fontSize: 15 }}>
-            {step.text}{step.timer && <span className="badge badge-completed" style={{ position: "static", marginLeft: 8, fontSize: 11 }}>{step.timer}</span>}
+          <li key={step.stepNumber} className="py-1 leading-relaxed text-sm">
+            {step.text}
+            {step.timer && (
+              <span className="ml-2 inline-block rounded-full bg-green-100 px-2 py-[1px] text-xs font-medium text-green-700">
+                {step.timer}
+              </span>
+            )}
           </li>
         ))}
       </ol>
 
       {/* Source */}
-      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-        <p className="recipe-meta">
+      <div className="border-t border-[var(--border)] pt-4">
+        <p className="flex items-center gap-4 text-xs text-[var(--text-secondary)]">
           {ext?.sourceUrl && (
-            <a href={ext.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
+            <a href={ext.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">
               Source URL →
             </a>
           )}
@@ -237,51 +297,74 @@ export default function RecipeDetailPage() {
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-        {job.status === "COMPLETED" && (
-          <>
-            <button onClick={() => setConfirmAction("reset")} className="btn" style={{ border: "1px solid #e65100", color: "#e65100", fontSize: 14 }}>
-              ↻ Re-process Recipe
-            </button>
-            <button onClick={() => setConfirmAction("delete")} className="btn" style={{ border: "1px solid #c62828", color: "#c62828", fontSize: 14 }}>
-              🗑 Delete Recipe
-            </button>
-          </>
-        )}
-      </div>
+      {job.status === "COMPLETED" && (
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            onClick={() => setConfirmAction("reset")}
+            className="rounded border border-orange-600 px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50"
+          >
+            ↻ Re-process Recipe
+          </button>
+          <button
+            onClick={() => setConfirmAction("delete")}
+            className="rounded border border-red-700 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50"
+          >
+            🗑 Delete Recipe
+          </button>
+        </div>
+      )}
 
       {/* Back button */}
-      <button onClick={() => navigate("/recipes")} style={{ marginTop: 16, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 14 }}>
+      <button
+        onClick={() => navigate({ to: "/recipes" })}
+        className="mt-4 rounded border border-[var(--border)] bg-white px-4 py-2 text-sm transition-colors hover:bg-gray-50"
+      >
         ← Back to Recipes
       </button>
 
       {/* Confirmation modal */}
       {confirmAction && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="recipe-card" style={{ maxWidth: 400, padding: 24 }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-xl">
             {confirmAction === "delete" && (
               <>
-                <h3 style={{ margin: "0 0 8px", fontFamily: "'EB Garamond',Georgia,serif" }}>Delete Recipe?</h3>
-                <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
+                <h3
+                  className="mb-2 text-xl font-bold"
+                  style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+                >
+                  Delete Recipe?
+                </h3>
+                <p className="mb-6 text-[var(--text-secondary)]">
                   This will permanently remove "{ext?.recipeName}". This action cannot be undone.
                 </p>
               </>
             )}
             {confirmAction === "reset" && (
               <>
-                <h3 style={{ margin: "0 0 8px", fontFamily: "'EB Garamond',Georgia,serif" }}>Re-process Recipe?</h3>
-                <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
+                <h3
+                  className="mb-2 text-xl font-bold"
+                  style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+                >
+                  Re-process Recipe?
+                </h3>
+                <p className="mb-6 text-[var(--text-secondary)]">
                   This will reset "{ext?.recipeName}" to pending so it gets re-processed from the source URL. The current extracted data will be cleared.
                 </p>
               </>
             )}
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-              <button onClick={() => setConfirmAction(null)} className="btn">Cancel</button>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmAction(null)} className="rounded border border-[var(--border)] bg-white px-4 py-2 text-sm transition-colors hover:bg-gray-50">
+                Cancel
+              </button>
               {confirmAction === "delete" && (
-                <button onClick={handleDelete} className="btn btn-primary" style={{ background: "#c62828" }}>Delete</button>
+                <button onClick={handleDelete} className="rounded bg-red-700 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90">
+                  Delete
+                </button>
               )}
               {confirmAction === "reset" && (
-                <button onClick={handleReset} className="btn btn-primary">Re-process</button>
+                <button onClick={handleReset} className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90">
+                  Re-process
+                </button>
               )}
             </div>
           </div>

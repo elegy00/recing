@@ -57,9 +57,9 @@ if [ "$BUILD" = true ]; then
   log "1/4 — Building and pushing images ..."
   REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-  docker build -t "${REGISTRY}/web:${IMAGE_TAG}"       -f "${REPO_ROOT}/k8s/Dockerfile.web"       "$REPO_ROOT"
-  docker build -t "${REGISTRY}/ingestion:${IMAGE_TAG}" -f "${REPO_ROOT}/k8s/Dockerfile.ingestion"  "$REPO_ROOT"
-  docker build -t "${REGISTRY}/migrate:${IMAGE_TAG}"   -f "${REPO_ROOT}/k8s/Dockerfile.migrate"    "$REPO_ROOT"
+  docker build -t "${REGISTRY}/web:${IMAGE_TAG}"       -f "${REPO_ROOT}/docker/Dockerfile.web"       "$REPO_ROOT"
+  docker build -t "${REGISTRY}/ingestion:${IMAGE_TAG}" -f "${REPO_ROOT}/docker/Dockerfile.ingestion"  "$REPO_ROOT"
+  docker build -t "${REGISTRY}/migrate:${IMAGE_TAG}"   -f "${REPO_ROOT}/docker/Dockerfile.migrate"    "$REPO_ROOT"
 
   docker push "${REGISTRY}/web:${IMAGE_TAG}"
   docker push "${REGISTRY}/ingestion:${IMAGE_TAG}"

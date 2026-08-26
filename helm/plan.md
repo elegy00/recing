@@ -2,7 +2,7 @@
 
 ## Why Helm over raw manifests
 
-The old `k8s/` directory uses plain YAML + a shell script that splices values together manually.
+The old `docker/` directory (formerly k8s/) uses plain YAML + a shell script that splices values together manually.
 Helm gives us: typed values, Go templating, atomic upgrade/rollback, and a single `helm upgrade --install` instead of `kubectl apply` per file.
 
 ---
@@ -12,7 +12,7 @@ Helm gives us: typed values, Go templating, atomic upgrade/rollback, and a singl
 ```
 helm/
   plan.md              ← this file
-  deploy.sh            ← interactive install/upgrade script (replaces k8s/deploy.sh)
+  deploy.sh            ← interactive install/upgrade script (replaces docker/deploy.sh)
   recing/              ← Helm chart root
     Chart.yaml
     .helmignore
@@ -111,9 +111,9 @@ ingress
 
 ---
 
-## Differences from k8s/
+## Differences from docker/
 
-| k8s/                        | helm/                                      |
+| docker/                     | helm/                                      |
 |-----------------------------|--------------------------------------------|
 | Separate migrate Job        | initContainer on web + ingestion           |
 | Hard-coded values in YAML   | All values in values.yaml / --set          |
