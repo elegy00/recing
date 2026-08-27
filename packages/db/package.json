@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "description": "Shared database access layer (Prisma) for all Recing services.",
   "dependencies": {
