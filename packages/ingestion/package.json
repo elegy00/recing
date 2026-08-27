@@ -17,7 +17,7 @@
     "build": "tsc --project tsconfig.json",
     "dev:start": "pnpm exec tsx src/cli.ts start",
     "dev:fetch": "pnpm exec tsx src/cli.ts fetch",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
   "dependencies": {

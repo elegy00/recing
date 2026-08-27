@@ -108,6 +108,21 @@ describe("parseRecipeExtraction", () => {
     expect(result.ingredients[2].quantity).toBeNull();
   });
 
+  it("keeps quantity/unit optional (lenient) — missing keys parse to null", () => {
+    // Regression guard: quantity/unit must stay OPTIONAL so a model that omits them
+    // does not fail validation. Extraction is encouraged via the prompt, not enforced here.
+    const result = parseRecipeExtraction({
+      status: "extracted" as const,
+      recipeName: "Lenient",
+      ingredients: [
+        { name: "Salt", originalText: "a pinch of salt" }, // no quantity/unit keys at all
+      ],
+      instructions: [{ stepNumber: 1, text: "Season to taste." }],
+    });
+    expect(result.ingredients[0].quantity).toBeNull();
+    expect(result.ingredients[0].unit).toBeNull();
+  });
+
   it("fills in missing schemaVersion and sourceUrl (LLM-friendly)", () => {
     const minimal = {
       status: "extracted" as const,

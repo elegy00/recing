@@ -10,7 +10,7 @@ recing/
 │   ├── ingestion/    Worker — fetches URLs, calls llama.cpp
 │   └── migrate/      Postgres migrations
 ├── docker-compose.yml    Local Postgres
-├── k8s/                  k3s deployment manifests
+├── docker/               Dockerfiles + k3s deployment manifests
 ├── .github/workflows/    CI/CD (build, test, publish images)
 └── docs/
     └── dev-local.md      Local development guide

@@ -3,8 +3,8 @@
 ```
 packages/
 ├── schema/       Shared types + Zod schemas
-├── web/          Hono API + React SPA (k8s: web pod)
-├── ingestion/    Worker — fetches URLs, calls llama.cpp (k8s: ingestion pod)
+├── web/          Hono API + React SPA (docker: web container)
+├── ingestion/    Worker — fetches URLs, calls llama.cpp (docker: ingestion container)
 └── migrate/      Postgres migration runner
 ```
 
@@ -36,4 +36,4 @@ pnpm test          # all packages
 
 ## Kubernetes Deployment
 
-See [../k8s/README.md](../k8s/README.md) for full instructions.
+See [../docker/README.md](../docker/README.md) for full instructions.

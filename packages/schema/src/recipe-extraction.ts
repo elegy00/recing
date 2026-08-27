@@ -9,15 +9,22 @@ const nullString = (schema: z.ZodType<string>) =>
 
 // ─── Ingredient ──────────────────────────────────────────────────────────────
 
-/** Accept string or number for quantity, always normalize to string | null. */
+/** Accept string or number for quantity; optional (null when the source has no amount).
+ * Normalizes to string | null. Parsing stays lenient if the LLM omits it, but the prompt and
+ * schema description instruct the model to fill it in whenever the source states an amount. */
 const nullableQuantity = z
   .union([z.string(), z.number()])
   .nullish()
-  .transform((v) => (v === undefined || v === null ? null : String(v)));
+  .transform((v) => (v === undefined || v === null ? null : String(v)))
+  .describe(
+    'Amount of the ingredient as written in the source (e.g. "2", "300"). Extract it from originalText when present; use null only if the source gives no amount.'
+  );
 
 const ingredientSchema = z.object({
   quantity: nullableQuantity,
-  unit: nullString(z.string()),
+  unit: nullString(z.string()).describe(
+    'Measure/unit of the ingredient as written in the source (e.g. "g", "cups", "dl"). Use null when there is none.'
+  ),
   name: z.string().min(1),
   note: nullString(z.string()),
   originalText: z.string().min(1),
@@ -54,7 +61,7 @@ const RECIPE_SCHEMA_VERSION = "recipe_extraction.v1";
 /** Base schema for all recipe extractions. Fields like schemaVersion, sourceUrl,
  * and notes are optional here because the LLM (without an embedded JSON Schema)
  * may omit them. Missing values are filled in by parseRecipeExtraction(). */
-const baseSchema = z.object({
+export const baseSchema = z.object({
   schemaVersion: nullString(z.literal(RECIPE_SCHEMA_VERSION)),
   status: z.enum(["extracted", "unusable"]),
   sourceUrl: nullString(z.string().url()),

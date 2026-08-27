@@ -1,0 +1,32 @@
+@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;700&family=Inter:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* ── Recing brand tokens ──────────────────────────────────────────────── */
+:root {
+  --accent: #d9665b;
+  --bg: #f5f4f0;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #737373;
+  --border: #e2e0db;
+}
+
+@theme {
+  --font-serif: "EB Garamond", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/*
+ * Base styles live in the `base` layer so that Tailwind utilities (which are
+ * emitted into the higher-priority `utilities` layer) can always override them.
+ * Do NOT add an unlayered `* { margin:0; padding:0 }` reset here — it would
+ * silently defeat every Tailwind margin/padding utility in the app.
+ */
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+}

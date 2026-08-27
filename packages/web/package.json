@@ -1,36 +1,43 @@
 {
-  "name": "@recing/web",
-  "version": "0.0.0",
+  "name": "recing",
+  "private": true,
   "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "scripts": {
-    "dev": "tsx src/index.ts --mode dev",
-    "build:client": "vite build",
-    "build:server": "tsc --project tsconfig.json",
-    "start": "node dist/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "dev": "vite dev --port 3000",
+    "generate-routes": "tsr generate",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "biome format",
+    "lint": "biome lint",
+    "check": "biome check"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.0",
-    "@recing/schema": "workspace:*",
-    "hono": "^4.12.24",
-    "mongodb": "^6.17.0",
     "pg": "^8.23.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.3",
-    "dotenv": "^16.5.2"
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-router": "latest",
+    "@tanstack/react-start": "latest",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "@types/pg": "^8.21.0",
-    "@types/react": "^19.1.4",
-    "@types/react-dom": "^19.1.5",
-    "@vitejs/plugin-react": "^4.7.0",
-    "pg-mem": "^3.0.14",
-    "tsx": "^4.20.3",
-    "typescript": "^6.0.3",
-    "vite": "^6.3.5",
-    "vitest": "^4.1.8"
+    "@biomejs/biome": "2.4.5",
+    "@tanstack/devtools-vite": "latest",
+    "@tanstack/router-cli": "^1.132.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lightningcss"
+    ]
   }
 }

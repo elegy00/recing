@@ -1,0 +1,25 @@
+{
+  "name": "@recing/db",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "description": "Shared database access layer (Prisma) for all Recing services.",
+  "dependencies": {
+    "@prisma/client": "^6.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.8"
+  }
+}
