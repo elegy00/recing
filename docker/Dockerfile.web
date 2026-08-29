@@ -38,6 +38,9 @@ RUN pnpm install --prod --frozen-lockfile --shamefully-hoist
 # Copy built artifacts — TanStack Start outputs dist/server/ and dist/client/
 COPY --from=build /app/packages/web/dist ./dist
 
+# Add Node.js HTTP adapter wrapper (TanStack Start produces serverless handlers)
+COPY packages/web/server.mjs .
+
 EXPOSE 3000
 
-CMD ["node", "dist/server/server.js"]
+CMD ["node", "server.mjs"]

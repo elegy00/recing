@@ -15,5 +15,9 @@
     "@types/node": "^25.9.2",
     "@types/pg": "^8.21.0",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "nitro": "3.0.260610-beta",
+    "srvx": "^0.12.7"
   }
 }

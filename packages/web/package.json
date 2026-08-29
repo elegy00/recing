@@ -9,7 +9,7 @@
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "vite build",
-    "preview": "vite preview",
+    "start": "node .output/server/index.mjs",
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check"
@@ -19,6 +19,8 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
+    "nitro": "latest",
+    "srvx": "latest",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.18"
