@@ -15,14 +15,16 @@
     "check": "biome check"
   },
   "dependencies": {
-    "pg": "^8.23.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
+    "i18next": "^26.4.0",
     "nitro": "latest",
-    "srvx": "latest",
+    "pg": "^8.23.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.12",
+    "srvx": "latest",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
