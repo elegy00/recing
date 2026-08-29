@@ -15,6 +15,7 @@ export default function Header() {
 				</Link>
 				<div className="flex gap-6 text-sm">
 					<NavLink to="/" label={t("nav_recipes")} />
+					<NavLink to="/ingest" label={t("nav_ingest")} />
 					<NavLink to="/submit" label={t("nav_submit")} />
 				</div>
 			</nav>

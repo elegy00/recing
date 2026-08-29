@@ -67,7 +67,9 @@ export default function RecipeListPage() {
 			{/* Recipe grid */}
 			{!loading && !error && jobs.length > 0 && (
 				<div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-					{jobs.map((job) => renderCard(job))}
+					{jobs
+						.filter((j) => j.status === "COMPLETED")
+						.map((job) => renderCard(job))}
 				</div>
 			)}
 		</div>
@@ -75,6 +77,10 @@ export default function RecipeListPage() {
 
 	function renderCard(job: Job) {
 		const ext = job.result ?? null;
+		if (!ext?.recipeName) return null;
+
+		const hasTimeInfo =
+			ext.prepTime || ext.cookTime || ext.totalTime;
 
 		return (
 			<div key={job._id} className="relative">
@@ -83,74 +89,41 @@ export default function RecipeListPage() {
 					params={{ id: job._id }}
 					className="block rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-sm transition-colors duration-150 hover:border-[var(--accent)] hover:shadow-md cursor-pointer no-underline text-inherit"
 				>
-					{/* Status badge */}
-					{job.status === "PENDING" && (
-						<div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-							<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-yellow-500" />
-							{t("card_pending")}
-						</div>
-					)}
-					{job.status === "PROCESSING" && (
-						<div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-							<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-							{t("card_processing")}
-						</div>
-					)}
-					{job.status === "FAILED" && (
-						<div className="mb-3 flex items-center gap-2 text-xs text-red-600">
-							<span>✗</span>
-							{t("card_failed")}
-						</div>
-					)}
-
-					{ext?.recipeName && (
-						<>
-							{hasTimeInfo(ext) && (
-								<div className="mb-3 flex gap-4 text-xs text-[var(--text-secondary)]">
-									{ext.prepTime && (
-										<span>
-											{t("card_prep")}: {formatDuration(ext.prepTime)}
-										</span>
-									)}
-									{ext.cookTime && (
-										<span>
-											{t("card_cook")}: {formatDuration(ext.cookTime)}
-										</span>
-									)}
-									{ext.totalTime && !ext.prepTime && !ext.cookTime && (
-										<span>
-											{t("detail_total")}: {formatDuration(ext.totalTime)}
-										</span>
-									)}
-								</div>
+					{hasTimeInfo && (
+						<div className="mb-3 flex gap-4 text-xs text-[var(--text-secondary)]">
+							{ext.prepTime && (
+								<span>
+									{t("card_prep")}: {formatDuration(ext.prepTime)}
+								</span>
 							)}
-							<h3
-								className="mb-1 text-xl font-bold"
-								style={{
-									fontFamily: "'EB Garamond', Georgia, serif",
-									wordBreak: "break-word",
-								}}
-							>
-								{ext.recipeName}
-							</h3>
-							{ext.description && (
-								<p className="line-clamp-1 text-sm text-[var(--text-secondary)]">
-									{ext.description}
-								</p>
+							{ext.cookTime && (
+								<span>
+									{t("card_cook")}: {formatDuration(ext.cookTime)}
+								</span>
 							)}
-						</>
+							{ext.totalTime && !ext.prepTime && !ext.cookTime && (
+								<span>
+									{t("detail_total")}: {formatDuration(ext.totalTime)}
+								</span>
+							)}
+						</div>
 					)}
-					{job.status === "FAILED" && job.error && (
-						<p className="mt-1 text-xs text-red-500">{job.error}</p>
+					<h3
+						className="mb-1 text-xl font-bold"
+						style={{
+							fontFamily: "'EB Garamond', Georgia, serif",
+							wordBreak: "break-word",
+						}}
+					>
+						{ext.recipeName}
+					</h3>
+					{ext.description && (
+						<p className="line-clamp-1 text-sm text-[var(--text-secondary)]">
+							{ext.description}
+						</p>
 					)}
 				</Link>
 			</div>
 		);
-	}
-
-	function hasTimeInfo(
-		ext: NonNullable<Job["result"]>,
-	): boolean {
-		return !!ext.prepTime || !!ext.cookTime || !!ext.totalTime;
 	}
 }

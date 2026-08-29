@@ -2,6 +2,7 @@ export default {
 	// ── Header ────────────────────────────────────────────────
 	nav_submit: "Einreichen",
 	nav_recipes: "Rezepte",
+	nav_ingest: "Verarbeitung",
 
 	// ── Footer ────────────────────────────────────────────────
 	footer_terms: "AGB",
@@ -29,9 +30,6 @@ export default {
 	recipes_loading: "Wird geladen …",
 	recipes_empty:
 		"Keine Rezepte gefunden. {tryFilter, select, other[Versuche einen anderen Filter.]}",
-	card_pending: "Ausstehend",
-	card_processing: "In Verarbeitung…",
-	card_failed: "Fehlgeschlagen",
 	card_cook: "Kochen",
 	card_prep: "Vorbereitung",
 
@@ -70,4 +68,18 @@ export default {
 	// ── Toast / generic ───────────────────────────────────────
 	delete_failed: "Löschen fehlgeschlagen:",
 	reset_failed: "Zurücksetzen fehlgeschlagen:",
+
+	// ── IngestPage ────────────────────────────────────────────
+	ingest_title: "VERARBEITUNG",
+	ingest_loading: "Wird geladen …",
+	ingest_job_count: "{count, plural, =0 {Keine Rezepte} =1 {Ein Rezept in Bearbeitung} other {{count} Rezepte in Bearbeitung}}",
+	ingest_polling: "Aktualisiert sich automatisch…",
+	ingest_url: "URL",
+	ingest_status: "Status",
+	ingest_submitted: "Eingereicht",
+	ingest_empty: "Keine Rezepte in Bearbeitung.",
+	ingest_pending: "Ausstehend",
+	ingest_processing: "In Verarbeitung…",
+	ingest_failed: "Fehlgeschlagen",
+	ingest_now: "Gerade eben",
 } as const;
