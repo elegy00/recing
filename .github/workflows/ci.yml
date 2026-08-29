@@ -1,4 +1,4 @@
-name: CI — Build & Publish
+name: CI — Build, Publish & Helm Sync
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write   # Create tags + sync commits to helm values
   packages: write   # GHCR publish
 
 env:
@@ -74,12 +74,28 @@ jobs:
         with:
           fetch-depth: 0   # needed for git describe
 
-      - name: Determine version
+      - name: Determine next version
         id: version
         run: |
-          TAG=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
-          echo "version=$TAG" >> $GITHUB_OUTPUT
-          echo "Version: $TAG"
+          # Find the latest v* tag, parse MAJOR.MINOR.PATCH, bump PATCH
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n 1 || true)
+          if [[ -n "$LATEST_TAG" ]]; then
+            # Strip leading 'v'
+            VERSION=${LATEST_TAG#v}
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3)
+            PATCH=$((PATCH + 1))
+          else
+            MAJOR=0; MINOR=0; PATCH=1
+          fi
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_MAJOR=$MAJOR" >> $GITHUB_OUTPUT
+          echo "VERSION_MINOR=$MINOR" >> $GITHUB_OUTPUT
+          echo "VERSION_PATCH=$PATCH" >> $GITHUB_OUTPUT
+          echo "Version: v$NEW_VERSION (next tag was ${LATEST_TAG:-none})"
+        shell: bash
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -117,3 +133,46 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/migrate:${{ steps.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/migrate:latest
+
+      # ── Sync Helm values with the newly built image version ──────────────
+      - name: Checkout again (fresh state)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Helm values with new image tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VALUES_FILE="helm/recing/values.yaml"
+
+          # Use sed to update the image.tag and migrate.tag in values.yaml
+          # We target the specific lines that set "tag: latest"
+          sed -i 's/^  tag: latest$/  tag: '"$VERSION"'/' "$VALUES_FILE"
+          sed -i '/^migrate:/,/^[^ ]/{ s/^  tag: latest$/  tag: '"$VERSION"'/ }' "$VALUES_FILE"
+
+          echo "Updated values.yaml to image.tag=$VERSION, migrate.tag=$VERSION"
+          cat "$VALUES_FILE"
+
+      - name: Commit & push updated Helm values
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add helm/recing/values.yaml
+          if git diff --cached --quiet; then
+            echo "No changes to commit (values already at this version)."
+          else
+            git commit -m "chore(helm): bump image tags to v${VERSION} [skip ci]"
+            git push origin main
+          fi
+        shell: bash
+
+      - name: Create & push version tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Release v${VERSION} — images: web, ingestion, migrate @ ${VERSION}"
+          git push origin "v${VERSION}"
