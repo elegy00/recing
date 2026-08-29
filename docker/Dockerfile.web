@@ -35,12 +35,9 @@ COPY packages/web/package.json packages/web/
 RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install --prod --frozen-lockfile --shamefully-hoist
 
-# Copy built artifacts — TanStack Start outputs dist/server/ and dist/client/
-COPY --from=build /app/packages/web/dist ./dist
-
-# Add Node.js HTTP adapter wrapper (TanStack Start produces serverless handlers)
-COPY packages/web/server.mjs .
+# Copy Nitro build output — includes server, public assets, and SSR runtime
+COPY --from=build /app/packages/web/.output ./.output
 
 EXPOSE 3000
 
-CMD ["node", "server.mjs"]
+CMD ["node", ".output/server/index.mjs"]
