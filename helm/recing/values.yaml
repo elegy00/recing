@@ -1,12 +1,12 @@
 # ── Images ─────────────────────────────────────────────────────
 image:
   registry: ghcr.io/elegy00/recing
-  tag: latest
+  tag: 0.0.1
   pullPolicy: Always
 
 # Migrate image is built separately (Dockerfile.migrate)
 migrate:
-  tag: latest
+  tag: 0.0.1
 
 # ── Web ─────────────────────────────────────────────────────────
 web:
