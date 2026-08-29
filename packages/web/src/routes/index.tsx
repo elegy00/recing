@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import SubmitPage from "../pages/SubmitPage";
+import RecipeListPage from "../pages/RecipeListPage";
 
 export const Route = createFileRoute("/")({ component: App });
 
 function App() {
-  return <SubmitPage />;
+	return <RecipeListPage />;
 }

@@ -1,3 +1,8 @@
+// Initialize i18next BEFORE any component renders (SSR & client)
+// This import MUST stay here and cannot be moved or tree-shaken.
+import { initI18n } from "../i18n/config";
+initI18n();
+
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
@@ -8,7 +13,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Recing · Recipe Extraction" },
+      { title: "Recing · Rezepte extrahieren" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
