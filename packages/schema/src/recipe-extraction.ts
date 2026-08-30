@@ -77,6 +77,8 @@ export const baseSchema = z.object({
   keywords: z
     .union([z.string(), z.array(z.string())])
     .nullable()
+    .optional()
+    .default(null)
     .transform((v) => {
       if (v === null || v === undefined) return null;
       return Array.isArray(v) ? v : [v];

@@ -80,11 +80,15 @@ describe("parseRecipeExtraction", () => {
     );
   });
 
-  it("rejects unusable with non-null recipeName", () => {
-    const bad = { ...validUnusable, recipeName: "Something" };
-    expect(() => parseRecipeExtraction(bad)).toThrow(
-      "Invalid state: status=unusable requires no recipeName and a reason"
-    );
+  it("accepts unusable with non-null recipeName (only unusableReason is required)", () => {
+    // The app intentionally allows recipeName for unusable extractions
+    // (e.g., from Wikipedia page titles) — only unusableReason matters.
+    const result = parseRecipeExtraction({
+      ...validUnusable,
+      recipeName: "Some Page Title",
+    } as unknown);
+    expect(result.status).toBe("unusable");
+    expect(result.recipeName).toBe("Some Page Title");
   });
 
   it("rejects unusable with empty unusableReason", () => {
