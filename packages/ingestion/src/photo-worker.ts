@@ -92,7 +92,7 @@ interface PendingPhotoJob {
 
 async function fetchPendingPhotoJobs(db: Pool): Promise<PendingPhotoJob[]> {
   const res = await db.query<PendingPhotoJob>(
-    `SELECT id FROM photo_jobs WHERE status IN ('PENDING', 'CHUNKING') ORDER BY created_at ASC`
+    `SELECT id FROM photo_jobs WHERE status IN ('PENDING', 'CHUNKING', 'MERGING') ORDER BY created_at ASC`
   );
   return res.rows;
 }
@@ -259,7 +259,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
   try {
     // ── Phase 1: Extract from each photo sequentially ──────────────
     if (currentStatus === "PENDING" || currentStatus === "CHUNKING") {
-      await db.query(`UPDATE photo_jobs SET status = 'CHUNKING', updated_at = NOW() WHERE id = $1`, [jobId]);
+      await db.query(`UPDATE photo_jobs SET status = 'CHUNKING', updated_at = NOW() WHERE id = $1::uuid`, [jobId]);
 
       let pendingChunks = await fetchPendingChunksWithPhotos(db, jobId);
 
@@ -277,7 +277,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
 
           // Mark as extracting
           await db.query(
-            `UPDATE photo_chunks SET status = 'EXTRACTING', updated_at = NOW() WHERE id = $1`, [chunk.id]
+            `UPDATE photo_chunks SET status = 'EXTRACTING', updated_at = NOW() WHERE id = $1::uuid`, [chunk.id]
           );
 
           // Extract structured RecipeExtraction via vision LLM (with retry)
@@ -286,20 +286,20 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
           // Store result and mark as extracted
           const now = new Date().toISOString();
           await db.query(
-            `UPDATE photo_chunks SET status = 'EXTRACTED', extracted_json = $2, error = NULL, updated_at = $3 WHERE id = $1`,
+            `UPDATE photo_chunks SET status = 'EXTRACTED', extracted_json = $2::jsonb, error = NULL, updated_at = $3 WHERE id = $1::uuid`,
             [chunk.id, JSON.stringify(extraction), now]
           );
 
           // Update job completed count (simpler: just increment)
           await db.query(
-            `UPDATE photo_jobs SET completed_chunks = completed_chunks + 1, updated_at = NOW() WHERE id = $2`,
+            `UPDATE photo_jobs SET completed_chunks = completed_chunks + 1, updated_at = NOW() WHERE id = $1::uuid`,
             [jobId]
           );
 
         } catch (err) {
           console.warn(`[photo-worker] Failed to extract photo ${chunk.order_num}: ${err}`);
           await db.query(
-            `UPDATE photo_chunks SET status = 'FAILED', error = $2, updated_at = NOW() WHERE id = $1`,
+            `UPDATE photo_chunks SET status = 'FAILED', error = $2, updated_at = NOW() WHERE id = $1::uuid`,
             [chunk.id, String(err)]
           );
 
@@ -318,7 +318,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
       }
 
       // Move to merging phase
-      await db.query(`UPDATE photo_jobs SET status = 'MERGING', updated_at = NOW() WHERE id = $1`, [jobId]);
+      await db.query(`UPDATE photo_jobs SET status = 'MERGING', updated_at = NOW() WHERE id = $1::uuid`, [jobId]);
     }
 
     // ── Phase 2: Merge all extracted RecipeExtractions → final result ─
@@ -333,7 +333,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
         } else {
           // Fetch the extracted_json for this chunk
           const jsonRes = await db.query(
-            `SELECT extracted_json FROM photo_chunks WHERE id = $1`, [c.id]
+            `SELECT extracted_json FROM photo_chunks WHERE id = $1::uuid`, [c.id]
           );
           const json = (jsonRes.rows[0]?.extracted_json ?? null) as schema.RecipeExtraction | null;
           chunksWithExtraction.push({ orderNum: Number(c.order_num), extraction: json });
@@ -346,6 +346,12 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
         throw new Error("No successful extractions available to merge");
       }
 
+      // If ALL chunks are unusable, skip merging and fail gracefully
+      const allUnusable = validChunks.every((c) => c.extraction?.status === "unusable");
+      if (allUnusable) {
+        throw new Error("All photo extractions were unusable — no recipe could be extracted");
+      }
+
       console.warn(`[photo-worker] Merging ${validChunks.length} extraction(s) for job ${jobId}`);
 
       // Merge with retry
@@ -354,7 +360,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
       // Save final result and mark as completed
       const now = new Date().toISOString();
       await db.query(
-        `UPDATE photo_jobs SET status = 'COMPLETED', result = $2, error = NULL, updated_at = $3 WHERE id = $1`,
+        `UPDATE photo_jobs SET status = 'COMPLETED', result = $2::jsonb, error = NULL, updated_at = $3 WHERE id = $1::uuid`,
         [jobId, JSON.stringify(extraction), now]
       );
 
@@ -364,13 +370,13 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
   } catch (err) {
     console.warn(`[photo-worker] Job ${jobId} failed: ${err}`);
     await db.query(
-      `UPDATE photo_jobs SET status = 'FAILED', error = $2, updated_at = NOW() WHERE id = $1`,
+      `UPDATE photo_jobs SET status = 'FAILED', error = $2, updated_at = NOW() WHERE id = $1::uuid`,
       [jobId, String(err)]
     );
 
     // Mark all remaining pending chunks as FAILED too
     await db.query(
-      `UPDATE photo_chunks SET status = 'FAILED', error = $2, updated_at = NOW() WHERE job_id = $1 AND status IN ('PENDING', 'EXTRACTING')`,
+      `UPDATE photo_chunks SET status = 'FAILED', error = $2, updated_at = NOW() WHERE job_id = $1::uuid AND status IN ('PENDING', 'EXTRACTING')`,
       [jobId, String(err)]
     );
   }

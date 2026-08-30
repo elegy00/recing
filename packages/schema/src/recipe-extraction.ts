@@ -73,7 +73,14 @@ export const baseSchema = z.object({
   servings: nullString(z.string()),
   cuisine: nullString(z.string()),
   category: nullString(z.string()),
-  keywords: nullString(z.string()),
+  /** Keywords/tags — accept string (legacy), array of strings, or null. Normalized to string[] | null. */
+  keywords: z
+    .union([z.string(), z.array(z.string())])
+    .nullable()
+    .transform((v) => {
+      if (v === null || v === undefined) return null;
+      return Array.isArray(v) ? v : [v];
+    }),
   ingredients: ingredientSchema.array().optional().default([]),
   instructions: instructionSchema.array().optional().default([]),
   notes: z.array(z.string().min(1)).optional().default([]),
@@ -93,7 +100,7 @@ export interface RecipeExtraction {
   servings: string | null;
   cuisine: string | null;
   category: string | null;
-  keywords: string | null;
+  keywords: string[] | null;
   ingredients: RecipeIngredient[];
   instructions: RecipeInstruction[];
   notes: string[];
@@ -135,9 +142,11 @@ export function parseRecipeExtraction(raw: unknown): RecipeExtraction {
   }
 
   if (data.status === "unusable") {
-    if (data.recipeName !== null || !data.unusableReason) {
+    // Allow recipeName to be set (e.g., from Wikipedia page titles) — the key requirement
+    // is that unusableReason explains why full extraction failed.
+    if (!data.unusableReason) {
       throw new ZodValidationError(
-        "Invalid state: status=unusable requires no recipeName and a reason"
+        "Invalid state: status=unusable requires an unusableReason"
       );
     }
   }
