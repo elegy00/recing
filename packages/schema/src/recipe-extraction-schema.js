@@ -122,7 +122,17 @@ export default {
     "keywords": {
       "anyOf": [
         {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         {
           "type": "null"
@@ -239,7 +249,8 @@ export default {
     }
   },
   "required": [
-    "status"
+    "status",
+    "keywords"
   ],
   "additionalProperties": false
 };

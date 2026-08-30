@@ -3,6 +3,7 @@ export default {
 	nav_submit: "Einreichen",
 	nav_recipes: "Rezepte",
 	nav_ingest: "Verarbeitung",
+	nav_photo_upload: "Foto-Upload",
 
 	// ── Footer ────────────────────────────────────────────────
 	footer_terms: "AGB",
@@ -82,4 +83,19 @@ export default {
 	ingest_processing: "In Verarbeitung…",
 	ingest_failed: "Fehlgeschlagen",
 	ingest_now: "Gerade eben",
+
+	// ── PhotoUploadPage ───────────────────────────────────────
+	photo_upload_title: "REZEPT VOM FOTO EINREICHEN",
+	photo_upload_description:
+		"Füge 1 oder mehr Fotos von Rezepten ein. Unser KI-Modell extrahiert automatisch alle Zutaten, Anleitungen und Details.",
+	photo_count: "{count} Foto{count, plural, one {} other [s]} ausgewählt",
+	photo_submit: "Einreichen →",
+	photo_submitted: "✓ Wird verarbeitet! Weiterleitung …",
+	photo_submitting: "Wird eingereicht …",
+
+	// ── Photo detail view ─────────────────────────────────────
+	photo_status_pending: "Ausstehend",
+	photo_status_expecting: "Wird extrahiert…",
+	photo_status_extracted: "Extrahiert",
+	photo_status_failed: "Fehlgeschlagen",
 } as const;

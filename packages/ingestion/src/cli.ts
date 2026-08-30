@@ -4,6 +4,7 @@ import { config as loadDotenv } from "dotenv";
 loadDotenv({ path: new URL("../../../.env", import.meta.url) });
 
 import { runWorker } from "./worker.js";
+import { runPhotoWorker } from "./photo-worker.js";
 import { closeDb } from "./db.js";
 import { describeError } from "./error-utils.js";
 import { fetchUrl } from "./url-fetcher.js";
@@ -33,20 +34,24 @@ async function cmdStart(): Promise<void> {
   const config = loadConfig();
   console.warn("Recing Ingestion Worker — starting\n");
 
-  let abortController: AbortController | null = null;
   let shuttingDown = false;
+  const urlController = runWorker(config);
+  console.warn("Starting URL-based ingestion worker… done.");
+
+  console.warn("\nStarting photo-based ingestion worker...");
+  const photoController = runPhotoWorker(config as any);
+  console.warn("Photo-based ingestion worker… started.");
 
   function shutdown(sig: string) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.warn(`\nReceived ${sig} — shutting down...`);
-    abortController?.abort();
+    urlController.abort();
+    photoController.abort();
   }
 
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
-
-  abortController = runWorker(config);
 
   // Keep alive until shutdown
   await new Promise<void>((resolve) => {

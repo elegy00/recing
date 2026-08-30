@@ -114,7 +114,17 @@
     "keywords": {
       "anyOf": [
         {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         {
           "type": "null"
@@ -231,7 +241,8 @@
     }
   },
   "required": [
-    "status"
+    "status",
+    "keywords"
   ],
   "additionalProperties": false
 }
