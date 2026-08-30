@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as IngestIndexRouteImport } from './routes/ingest/index'
 import { Route as RecipesIdRouteImport } from './routes/recipes/$id'
 import { Route as SubmitIndexRouteImport } from './routes/submit/index'
+import { Route as UploadIndexRouteImport } from './routes/upload/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const SubmitIndexRoute = SubmitIndexRouteImport.update({
   path: '/submit/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UploadIndexRoute = UploadIndexRouteImport.update({
+  id: '/upload/',
+  path: '/upload/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/recipes/$id': typeof RecipesIdRoute
   '/ingest/': typeof IngestIndexRoute
   '/submit/': typeof SubmitIndexRoute
+  '/upload/': typeof UploadIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/recipes/$id': typeof RecipesIdRoute
   '/ingest': typeof IngestIndexRoute
   '/submit': typeof SubmitIndexRoute
+  '/upload': typeof UploadIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/recipes/$id': typeof RecipesIdRoute
   '/ingest/': typeof IngestIndexRoute
   '/submit/': typeof SubmitIndexRoute
+  '/upload/': typeof UploadIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/recipes/$id' | '/ingest/' | '/submit/'
+  fullPaths: '/' | '/recipes/$id' | '/ingest/' | '/submit/' | '/upload/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/recipes/$id' | '/ingest' | '/submit'
-  id: '__root__' | '/' | '/recipes/$id' | '/ingest/' | '/submit/'
+  to: '/' | '/recipes/$id' | '/ingest' | '/submit' | '/upload'
+  id: '__root__' | '/' | '/recipes/$id' | '/ingest/' | '/submit/' | '/upload/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   RecipesIdRoute: typeof RecipesIdRoute
   IngestIndexRoute: typeof IngestIndexRoute
   SubmitIndexRoute: typeof SubmitIndexRoute
+  UploadIndexRoute: typeof UploadIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubmitIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/upload/': {
+      id: '/upload/'
+      path: '/upload'
+      fullPath: '/upload/'
+      preLoaderRoute: typeof UploadIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecipesIdRoute: RecipesIdRoute,
   IngestIndexRoute: IngestIndexRoute,
   SubmitIndexRoute: SubmitIndexRoute,
+  UploadIndexRoute: UploadIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
