@@ -1,25 +1,72 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listRecipes } from "../api/server-functions";
+import {
+	listRecipes,
+	listPhotoJobs,
+} from "../api/server-functions";
 
+type JobSource = "url" | "photo";
 type Status = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+interface IngestEntry {
+	_id: string;
+	source: JobSource;
+	urlOrTitle: string;
+	status: Status;
+	createdAt: string;
+	error?: string | null;
+}
+
+interface PhotoJobEntry {
+	_id: string;
+	status: string;
+	totalPhotos: number;
+	completedChunks: number;
+	createdAt: string;
+	error?: string | null;
+}
 
 export default function IngestPage() {
 	const { t } = useTranslation();
-	const [jobs, setJobs] = useState<
-		Array<{ _id: string; url: string; status: Status; createdAt: string }>
-	>([]);
+	const [entries, setEntries] = useState<IngestEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 
 	const fetchRecipes = useCallback(async () => {
 		try {
 			setLoading(true);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
-			const data = (await (listRecipes as any)({})) as { recipes: any[] };
-			// Only show non-completed jobs
-			setJobs(
-				data.recipes.filter((j: any) => j.status !== "COMPLETED"),
-			);
+			const urlData = (await (listRecipes as any)({})) as { recipes: any[] };
+			const photoData = (await (listPhotoJobs as any)({})) as { jobs: PhotoJobEntry[] };
+
+			// Convert URL jobs to ingest entries
+			const urlEntries: IngestEntry[] = urlData.recipes
+				.filter((j: any) => j.status !== "COMPLETED")
+				.map((j: any) => ({
+					_id: j._id,
+					source: "url" as JobSource,
+					urlOrTitle: j.url.length > 60 ? j.url.slice(0, 60) + "…" : j.url,
+					status: j.status as Status,
+					createdAt: j.createdAt,
+					error: j.error ?? null,
+				}));
+
+			// Convert photo jobs to ingest entries
+			const photoEntries: IngestEntry[] = (photoData.jobs || [])
+				.filter((j: PhotoJobEntry) => j.status !== "COMPLETED")
+				.map((j: PhotoJobEntry) => ({
+					_id: j._id,
+					source: "photo" as JobSource,
+					urlOrTitle: `${j.totalPhotos} Foto${j.totalPhotos > 1 ? "s" : ""}`,
+					status: (j.status === "CHUNKING" || j.status === "MERGING")
+						? "PROCESSING"
+						: (j.status as Status),
+					createdAt: j.createdAt,
+					error: j.error ?? null,
+				}));
+
+			setEntries([...urlEntries, ...photoEntries].sort(
+				(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+			));
 		} catch (_err) {
 			// silently ignore — stale data is better than nothing
 		} finally {
@@ -33,7 +80,7 @@ export default function IngestPage() {
 		return () => clearInterval(interval);
 	}, [fetchRecipes]);
 
-	if (loading && jobs.length === 0) {
+	if (loading && entries.length === 0) {
 		return (
 			<div className="mx-auto max-w-4xl px-6 py-12 text-center text-[var(--text-secondary)]">
 				<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--accent)] align-middle" />
@@ -51,10 +98,8 @@ export default function IngestPage() {
 				{t("ingest_title")}
 			</h1>
 			<p className="mb-6 text-sm text-[var(--text-secondary)]">
-				{jobs.length > 0 && (
-					<span>
-						{jobs.length} {t("ingest_job_count", { count: jobs.length })}
-					</span>
+				{entries.length > 0 && (
+					<span>{t("ingest_job_count", { count: entries.length })}</span>
 				)}{" "}
 			</p>
 
@@ -73,29 +118,32 @@ export default function IngestPage() {
 							<th className="w-28 px-4 py-3 font-medium">
 								{t("ingest_status")}
 							</th>
-							<th className="w-36 px-4 py-3 font-medium">
+							<th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-[var(--text-secondary)]">
 								{t("ingest_submitted")}
 							</th>
 						</tr>
 					</thead>
 					<tbody>
-						{jobs.map((job) => (
-							<tr key={job._id} className="border-b border-[var(--border)] transition-colors hover:bg-gray-50">
-								<td className="max-w-xs truncate px-4 py-3 font-mono text-xs text-[var(--text-primary)]">
-									{truncate(job.url, 60)}
+						{entries.map((entry) => (
+							<tr key={entry._id} className="border-b border-[var(--border)] transition-colors hover:bg-gray-50">
+								<td className="max-w-xs truncate px-4 py-3 text-[var(--text-primary)]">
+									{entry.source === "photo" && (
+										<span className="mr-2 inline-block h-2 w-2 rounded-full bg-purple-500" />
+									)}
+									{truncate(entry.urlOrTitle, 60)}
 								</td>
 								<td className="px-4 py-3">
-									<StatusBadge status={job.status} />
+									<StatusBadge status={entry.status} />
 								</td>
-								<td className="px-4 py-3 text-[var(--text-secondary)]">
-									{timeAgo(job.createdAt)}
+								<td className="px-6 py-3 text-right text-[var(--text-secondary)]">
+									{timeAgo(entry.createdAt)}
 								</td>
 							</tr>
 						))}
 					</tbody>
 				</table>
 
-				{jobs.length === 0 && (
+				{entries.length === 0 && (
 					<div className="py-12 text-center text-[var(--text-secondary)]">
 						{t("ingest_empty")}
 					</div>

@@ -31,6 +31,10 @@ export {
 export type { WorkerConfig } from "./worker.js";
 export { runWorker } from "./worker.js";
 
+// Photo ingestion worker (separate workflow)
+export type { PhotoWorkerConfig } from "./photo-worker.js";
+export { runPhotoWorker } from "./photo-worker.js";
+
 // Content reducer
 export type { ReducedContent } from "./content-reducer.js";
 export { reduce, extractTitle } from "./content-reducer.js";

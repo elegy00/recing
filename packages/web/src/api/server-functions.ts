@@ -183,3 +183,155 @@ export const retryRecipe = createServerFn({ method: "POST", strict: false })
 
     return { ok: true, error: null };
   });
+
+// ─── Photo ingestion server functions ──────────────────────────────────────
+
+/** Map photo job DB row to frontend type. */
+function mapPhotoJobRow(row: Record<string, unknown>): {
+  _id: string;
+  status: string;
+  totalPhotos: number;
+  completedChunks: number;
+  error?: string | null;
+  result?: any;
+  createdAt: string;
+} {
+  const r = row as {
+    id: string;
+    status: string;
+    total_photos: number;
+    completed_chunks: number;
+    error?: string | null;
+    result?: any;
+    created_at: Date | string;
+  };
+  return {
+    _id: r.id,
+    status: r.status,
+    totalPhotos: r.total_photos ?? 0,
+    completedChunks: r.completed_chunks ?? 0,
+    error: r.error,
+    result: r.result,
+    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+  };
+}
+
+/** Map photo chunk DB row to frontend type. */
+function mapPhotoChunkRow(row: Record<string, unknown>): {
+  _id: string;
+  jobId: string;
+  orderNum: number;
+  status: string;
+  dataUri: string;
+  extractedMarkdown?: string | null;
+  error?: string | null;
+} {
+  const r = row as {
+    id: string;
+    job_id: string;
+    order_num: number;
+    status: string;
+    data_uri: string;
+    extracted_markdown?: string | null;
+    error?: string | null;
+  };
+  return {
+    _id: r.id,
+    jobId: r.job_id,
+    orderNum: r.order_num,
+    status: r.status,
+    dataUri: r.data_uri,
+    extractedMarkdown: r.extracted_markdown ?? null,
+    error: r.error,
+  };
+}
+
+// ─── POST /api/photo-jobs — Submit photos for ingestion ──────────────────
+
+export const submitPhotoJob = createServerFn({ method: "POST", strict: false })
+  .handler(async (ctx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- data shape is controlled by caller
+    const data = ctx.data as any;
+    const photos: Array<{ dataUri: string }> | undefined = data?.photos;
+
+    if (!photos || !Array.isArray(photos) || photos.length === 0) {
+      throw new Error("At least one photo is required");
+    }
+
+    // Validate each photo URI (must be base64-encoded image)
+    for (let i = 0; i < photos.length; i++) {
+      if (!photos[i]?.dataUri || !photos[i].dataUri.startsWith("data:image/")) {
+        throw new Error(`Photo ${i + 1} is not a valid base64-encoded image`);
+      }
+    }
+
+    const pool = getPool();
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // Insert job
+    await pool.query(
+      "INSERT INTO photo_jobs (id, status, total_photos, completed_chunks, created_at, updated_at) VALUES ($1, 'PENDING', $2, 0, $3, $3)",
+      [id, photos.length, now]
+    );
+
+    // Insert chunks in order
+    for (let i = 0; i < photos.length; i++) {
+      await pool.query(
+        "INSERT INTO photo_chunks (job_id, order_num, data_uri, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)",
+        [id, i, photos[i].dataUri, now]
+      );
+    }
+
+    return { jobId: id };
+  });
+
+// ─── GET /api/photo-jobs — List photo jobs (non-completed by default) ────
+
+export const listPhotoJobs = createServerFn({ method: "GET", strict: false })
+  .handler(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- data shape controlled by caller
+    const data = {} as any;
+    const filterStatus = (data?.status as string) ?? "pending"; // default to non-completed for ingest page
+
+    let query = `SELECT * FROM photo_jobs`;
+    const params: unknown[] = [];
+
+    if (filterStatus === "all") {
+      query += " ORDER BY created_at DESC";
+    } else {
+      params.push(filterStatus);
+      query += ` WHERE status != 'COMPLETED' ORDER BY created_at ASC`;
+    }
+
+    const res = await getPool().query(query, params);
+    return { jobs: res.rows.map(mapPhotoJobRow) };
+  });
+
+// ─── GET /api/photo-jobs/:id — Get single photo job with chunks ──────────
+
+export const getPhotoJob = createServerFn({ method: "GET", strict: false })
+  .handler(async (ctx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- data shape controlled by caller
+    const data = ctx.data as any;
+    const id = data?.id;
+
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return { job: null, error: "Job not found" };
+    }
+
+    const pool = getPool();
+    const jobRes = await pool.query("SELECT * FROM photo_jobs WHERE id = $1", [id]);
+    if (jobRes.rows.length === 0) {
+      return { job: null, error: "Job not found" };
+    }
+
+    const chunksRes = await pool.query(
+      "SELECT * FROM photo_chunks WHERE job_id = $1 ORDER BY order_num ASC", [id]
+    );
+
+    const job = mapPhotoJobRow(jobRes.rows[0]);
+    const chunks = chunksRes.rows.map(mapPhotoChunkRow);
+
+    return { job, chunks };
+  });
