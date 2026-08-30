@@ -1,8 +1,8 @@
 /**
  * Photo-based recipe ingestion worker.
  * Processes 1-N photos sequentially through two steps per photo:
- *   Step A: Vision LLM extracts partial recipe markdown from each photo
- *   Step B: After all photos extracted, merge all markdown → final RecipeExtraction JSON
+ *   Step A: Vision LLM extracts structured RecipeExtraction from each photo
+ *   Step B: After all photos extracted, merge all extractions → final RecipeExtraction JSON
  *
  * Each step is persisted before moving to the next — failure at any point
  * leaves the job in a recoverable state.
@@ -15,6 +15,36 @@ import type { LlamaClientConfig, ChatCompletionResponse } from "./llm-client.js"
 import * as schema from "@recing/schema";
 import { parseRecipeExtraction } from "@recing/schema";
 
+// ─── Retry settings (matching URL ingestion) ──────────────────────────
+
+const MAX_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Wrap an async function with retry logic. */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts?: number, delayMs?: number): Promise<T> {
+  const attempts = maxAttempts ?? MAX_ATTEMPTS;
+  const delay = delayMs ?? RETRY_DELAY_MS;
+
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < attempts) {
+        console.warn(`[photo-worker] Attempt ${attempt}/${attempts} failed: ${err}. Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 // ─── Worker config ─────────────────────────────────────────────────────
 
 export interface PhotoWorkerConfig extends LlamaClientConfig {
@@ -26,29 +56,32 @@ const DEFAULT_POLL_INTERVAL_MS = 5_000;
 
 // ─── Prompt templates ──────────────────────────────────────────────────
 
+/** System prompt for per-photo extraction — asks for structured JSON matching RecipeExtraction schema. */
 const PHOTO_EXTRACT_SYSTEM_PROMPT = [
   "You are a recipe extraction assistant. You receive photos of recipes.",
   "",
   "Rules:",
-  "1. Return ONLY one valid JSON object — no markdown, no explanation text, no surrounding code fences.",
-  '2. Set status to "extracted" if you can identify a complete recipe with ingredients and instructions.',
-  '3. If the photo shows a partial recipe (e.g., just ingredients or just part of instructions), set status to "partial" and explain in description what is present.',
-  '4. Do NOT invent or guess any information. Use null for missing fields, empty arrays when no data exists.',
-  '5. For ingredients, extract quantity, unit, name, note, and originalText from the photo.',
-  "6. Instructions must be ordered with stepNumber starting at 1.",
-  `7. Include all temporal info you can see (prepTime, cookTime, totalTime in ISO 8601 format like PT30M).`,
+  '1. Return ONLY one valid JSON object — no markdown, no explanation text, no surrounding code fences.',
+  `2. Match the RecipeExtraction schema: fields include status, recipeName, description, prepTime, cookTime, totalTime, servings, cuisine, category, keywords, ingredients[], instructions[], notes[]`,
+  '3. Set status to "extracted" if you can identify a complete recipe with at least one ingredient AND one instruction.',
+  '4. If the photo shows only partial info (e.g., just ingredients), set status to "unusable" and explain in unusableReason what is missing.',
+  '5. Do NOT invent or guess any information. Use null for missing fields, empty arrays when no data exists.',
+  "6. For ingredients, extract quantity, unit, name, note, and originalText from the photo.",
+  "7. Instructions must be ordered with stepNumber starting at 1.",
+  `8. Include all temporal info you can see (prepTime, cookTime, totalTime in ISO 8601 format like PT30M).`,
 ].join("\n");
 
+/** System prompt for merging multiple structured extractions into one final recipe. */
 const MERGE_SYSTEM_PROMPT = [
-  "You are a recipe merger assistant. You receive markdown fragments from multiple photos of the same recipe.",
+  "You are a recipe merger assistant. You receive structured RecipeExtraction objects extracted from individual photos of the same recipe.",
   "",
   "Rules:",
   '1. Return ONLY one valid JSON object — no markdown, no explanation text.',
-  '2. Merge all information into a single complete RecipeExtraction.',
+  `2. Merge all information into a single complete RecipeExtraction following this schema: status, recipeName, description, prepTime, cookTime, totalTime, servings, cuisine, category, keywords, ingredients[], instructions[], notes[]`,
   "3. Deduplicate ingredients and instructions across fragments.",
   "4. Preserve the most detailed version of each piece of information.",
-  "5. Set status to 'extracted' when you have at least one ingredient AND one instruction.",
-  "6. Use null for any fields not provided by ANY fragment.",
+  '5. Set status to "extracted" when you have at least one ingredient AND one instruction in the final result.',
+  '6. Use null for any fields not provided by ANY fragment.',
 ].join("\n");
 
 // ─── DB helpers ────────────────────────────────────────────────────────
@@ -64,38 +97,44 @@ async function fetchPendingPhotoJobs(db: Pool): Promise<PendingPhotoJob[]> {
   return res.rows;
 }
 
-async function fetchPendingChunks(db: Pool, jobId: string): Promise<Array<{
+/** Fetch pending chunks with their associated photo data_uri. */
+async function fetchPendingChunksWithPhotos(db: Pool, jobId: string): Promise<Array<{
   id: string;
   order_num: number;
-  data_uri: string;
+  status: string;
+  data_uri: string | null;
 }>> {
   const res = await db.query(
-    `SELECT id, order_num, data_uri FROM photo_chunks WHERE job_id = $1 AND status = 'PENDING' ORDER BY order_num ASC`,
+    `SELECT c.id, c.order_num, c.status, p.data_uri
+     FROM photo_chunks c
+     LEFT JOIN photos p ON c.photo_id = p.id
+     WHERE c.job_id = $1 AND c.status = 'PENDING'
+     ORDER BY c.order_num ASC`,
     [jobId]
   );
   return res.rows as any[];
 }
 
+/** Fetch all chunks that have been extracted (success or failure). */
 async function fetchExtractedChunks(db: Pool, jobId: string): Promise<Array<{
   id: string;
   order_num: number;
-  extracted_markdown: string | null;
   status: string;
   error: string | null;
 }>> {
   const res = await db.query(
-    `SELECT id, order_num, extracted_markdown, status, error FROM photo_chunks WHERE job_id = $1 AND status IN ('EXTRACTED', 'FAILED') ORDER BY order_num ASC`,
+    `SELECT id, order_num, status, error FROM photo_chunks WHERE job_id = $1 AND status IN ('EXTRACTED', 'FAILED') ORDER BY order_num ASC`,
     [jobId]
   );
   return res.rows as any[];
 }
 
-// ─── Step A: Extract markdown from a single photo via vision LLM ──────
+// ─── Step A: Extract structured RecipeExtraction from a single photo via vision LLM ──
 
 async function extractFromPhoto(
   config: PhotoWorkerConfig,
   dataUri: string,
-): Promise<string> {
+): Promise<schema.RecipeExtraction> {
   const systemPrompt = PHOTO_EXTRACT_SYSTEM_PROMPT;
 
   // Build a multimodal request — the data URI is already base64-encoded image
@@ -104,7 +143,7 @@ async function extractFromPhoto(
     {
       role: "user",
       content: [
-        { type: "text", text: "Extract all recipe information visible in this photo." },
+        { type: "text", text: "Extract all recipe information visible in this photo. Return structured JSON." },
         { type: "image_url", image_url: { url: dataUri } },
       ],
     },
@@ -117,6 +156,7 @@ async function extractFromPhoto(
     top_p: 1.0,
     max_tokens: 24576,
     stream: false,
+    response_format: { type: "json_object" }, // force JSON output
     chat_template_kwargs: { enable_thinking: false },
   };
 
@@ -143,27 +183,28 @@ async function extractFromPhoto(
   // Strip code fences if present
   content = stripCodeFences(content.trim());
 
-  return content;
+  // Parse and validate as RecipeExtraction
+  return parseRecipeExtraction(JSON.parse(content));
 }
 
-// ─── Step B: Merge all markdown fragments into final RecipeExtraction ──
+// ─── Step B: Merge all structured extractions into final RecipeExtraction ──
 
-async function mergeMarkdownToFinal(
+async function mergeExtractedRecipes(
   config: PhotoWorkerConfig,
-  chunksMarkdown: Array<{ orderNum: number; markdown: string | null }>,
+  chunksData: Array<{ orderNum: number; extraction: schema.RecipeExtraction | null }>,
 ): Promise<schema.RecipeExtraction> {
   const systemPrompt = MERGE_SYSTEM_PROMPT;
 
-  // Build the user message with all extracted fragments
+  // Build the user message with all extracted RecipeExtraction objects
   const parts = [
-    "Here are the recipe information fragments extracted from individual photos. Merge them into one complete recipe.",
+    "Here are structured RecipeExtraction objects extracted from individual photos. Merge them into one complete recipe.",
     "",
   ];
 
-  for (const { orderNum, markdown } of chunksMarkdown) {
-    if (!markdown) continue;
-    parts.push(`--- Fragment ${orderNum + 1} ---`);
-    parts.push(markdown);
+  for (const { orderNum, extraction } of chunksData) {
+    if (!extraction) continue;
+    parts.push(`--- Photo ${orderNum + 1} ---`);
+    parts.push(JSON.stringify(extraction, null, 2));
     parts.push("");
   }
 
@@ -199,8 +240,7 @@ async function mergeMarkdownToFinal(
   content = stripCodeFences(content.trim());
 
   // Parse and validate as RecipeExtraction
-  const extractionNode = JSON.parse(content);
-  return parseRecipeExtraction(extractionNode) as schema.RecipeExtraction;
+  return parseRecipeExtraction(JSON.parse(content));
 }
 
 // ─── Core worker loop ──────────────────────────────────────────────────
@@ -221,7 +261,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
     if (currentStatus === "PENDING" || currentStatus === "CHUNKING") {
       await db.query(`UPDATE photo_jobs SET status = 'CHUNKING', updated_at = NOW() WHERE id = $1`, [jobId]);
 
-      let pendingChunks = await fetchPendingChunks(db, jobId);
+      let pendingChunks = await fetchPendingChunksWithPhotos(db, jobId);
 
       while (pendingChunks.length > 0) {
         // Process ONE chunk at a time
@@ -230,30 +270,30 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
         try {
           console.warn(`[photo-worker] Extracting photo ${chunk.order_num + 1}/${pendingChunks.length} for job ${jobId}`);
 
+          const dataUri = chunk.data_uri;
+          if (!dataUri) {
+            throw new Error("No image data found in photos table");
+          }
+
           // Mark as extracting
           await db.query(
             `UPDATE photo_chunks SET status = 'EXTRACTING', updated_at = NOW() WHERE id = $1`, [chunk.id]
           );
 
-          // Extract markdown via vision LLM
-          const markdown = await extractFromPhoto(config, chunk.data_uri);
+          // Extract structured RecipeExtraction via vision LLM (with retry)
+          const extraction = await withRetry(() => extractFromPhoto(config, dataUri));
 
           // Store result and mark as extracted
           const now = new Date().toISOString();
           await db.query(
-            `UPDATE photo_chunks SET status = 'EXTRACTED', extracted_markdown = $2, error = NULL, updated_at = $3 WHERE id = $1`,
-            [chunk.id, markdown, now]
+            `UPDATE photo_chunks SET status = 'EXTRACTED', extracted_json = $2, error = NULL, updated_at = $3 WHERE id = $1`,
+            [chunk.id, JSON.stringify(extraction), now]
           );
 
-          // Update job completed count
-          const res = await db.query(
-            `SELECT COUNT(*) as cnt FROM photo_chunks WHERE job_id = $1 AND status = 'EXTRACTED'`, [jobId]
-          );
-          const completedCount = Number((res.rows[0] as any).cnt);
-
+          // Update job completed count (simpler: just increment)
           await db.query(
-            `UPDATE photo_jobs SET completed_chunks = $1, updated_at = NOW() WHERE id = $2`,
-            [completedCount, jobId]
+            `UPDATE photo_jobs SET completed_chunks = completed_chunks + 1, updated_at = NOW() WHERE id = $2`,
+            [jobId]
           );
 
         } catch (err) {
@@ -267,7 +307,7 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
         }
 
         // Re-fetch pending (the current one is now EXTRACTED or FAILED)
-        pendingChunks = await fetchPendingChunks(db, jobId);
+        pendingChunks = await fetchPendingChunksWithPhotos(db, jobId);
       }
 
       // All chunks processed — move to merging phase
@@ -281,17 +321,35 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
       await db.query(`UPDATE photo_jobs SET status = 'MERGING', updated_at = NOW() WHERE id = $1`, [jobId]);
     }
 
-    // ── Phase 2: Merge all extracted markdown → final RecipeExtraction ─
+    // ── Phase 2: Merge all extracted RecipeExtractions → final result ─
     if (currentStatus === "MERGING") {
       const chunksRaw = await fetchExtractedChunks(db, jobId);
-      const chunksMarkdown = chunksRaw.map((c: any) => ({
-        orderNum: Number(c.order_num), // need to join or store this
-        markdown: c.extracted_markdown,
-      }));
 
-      console.warn(`[photo-worker] Merging ${chunksMarkdown.length} fragment(s) for job ${jobId}`);
+      // Re-fetch each chunk's extraction from JSONB
+      const chunksWithExtraction: Array<{ orderNum: number; extraction: schema.RecipeExtraction | null }> = [];
+      for (const c of chunksRaw) {
+        if (c.status === "FAILED") {
+          chunksWithExtraction.push({ orderNum: Number(c.order_num), extraction: null });
+        } else {
+          // Fetch the extracted_json for this chunk
+          const jsonRes = await db.query(
+            `SELECT extracted_json FROM photo_chunks WHERE id = $1`, [c.id]
+          );
+          const json = (jsonRes.rows[0]?.extracted_json ?? null) as schema.RecipeExtraction | null;
+          chunksWithExtraction.push({ orderNum: Number(c.order_num), extraction: json });
+        }
+      }
 
-      const extraction = await mergeMarkdownToFinal(config, chunksMarkdown);
+      // Filter to only successful extractions for the merge
+      const validChunks = chunksWithExtraction.filter((c) => c.extraction !== null);
+      if (validChunks.length === 0) {
+        throw new Error("No successful extractions available to merge");
+      }
+
+      console.warn(`[photo-worker] Merging ${validChunks.length} extraction(s) for job ${jobId}`);
+
+      // Merge with retry
+      const extraction = await withRetry(() => mergeExtractedRecipes(config, validChunks));
 
       // Save final result and mark as completed
       const now = new Date().toISOString();
@@ -371,8 +429,4 @@ function stripCodeFences(content: string): string {
     return content.substring(firstNewline + 1, content.length - 3).trim();
   }
   return content;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
