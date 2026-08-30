@@ -1,0 +1,55 @@
+{{- if .Values.traefik.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-traefik-patch-script
+  namespace: kube-system
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-failed
+data:
+  patch.sh: |
+    #!/bin/sh
+    set -e
+
+    # Read existing config (YAML format used by k3s)
+    CONFIG=$(kubectl get cm traefik-opts -n kube-system -o jsonpath='{.data.config\.yaml}' 2>/dev/null || echo "")
+
+    if [ -z "$CONFIG" ]; then
+      echo "WARNING: no config.yaml in traefik-opts, creating fresh config"
+      CONFIG="{}"
+    fi
+
+    # Merge entryPoints using Python (available in bitnami/kubectl)
+    export RECENT_CONFIG="$CONFIG"
+    NEW_CONFIG=$(python3 /scripts/merge_entrypoints.py)
+
+    # Patch the ConfigMap with merged config
+    kubectl patch cm traefik-opts -n kube-system --type merge \
+      -p "{\"data\":{\"config.yaml\":\"$(echo "$NEW_CONFIG" | base64 -w0)"}}"
+
+    echo "✓ Traefik entrypoints patched."
+    echo ""
+    echo "  Restart Traefik pods to pick up the changes:"
+    echo "    kubectl rollout restart deploy/traefik -n kube-system"
+
+  merge_entrypoints.py: |
+    import sys, yaml, json, os
+
+    # Our extra entrypoints from Helm values
+    entrypoints = {{ .Values.traefik.extraEntryPoints | toJson }}
+
+    # Existing config string from k3s traefik-opts ConfigMap (injected via env)
+    config_text = os.environ["RECENT_CONFIG"]
+    existing = yaml.safe_load(config_text) if config_text.strip() else {}
+
+    ep = existing.setdefault("entryPoints", {})
+    for entry in entrypoints:
+        name = entry["name"]
+        addr = entry["address"]
+        ep[name] = {"address": addr}
+        print(f"  + entryPoint {name}: {addr}", file=sys.stderr)
+
+    print(yaml.dump(existing, default_flow_style=False))
+{{- end }}

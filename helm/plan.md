@@ -23,7 +23,10 @@ helm/
       postgres.yaml    ← PVC + Deployment + Service  (toggleable via postgres.enabled)
       web.yaml         ← Deployment + Service (with migrate initContainer)
       ingestion.yaml   ← Deployment + Service (with migrate initContainer)
-      ingress.yaml     ← Ingress  (toggleable via ingress.enabled)
+      ingress.yaml     ← Ingress (multi-host + catch-all for IP access)
+      traefik-rbac.yaml       ← SA/ClusterRole/Binding for patching Traefik
+      traefik-patch-script.yaml ← ConfigMap with merge scripts
+      traefik-patch-job.yaml  ← pre-install hook Job → patches traefik-opts
 ```
 
 ---
@@ -83,10 +86,19 @@ secrets
   llmEndpoint   ""              ← required
   postgresUrl   ""              ← auto-derived when postgres.enabled; override if external
 
+traefik
+  enabled          false    ← set true to add extra entry-points
+  extraEntryPoints:        # {name, address} pairs added to Traefik config
+    - name: web-alt
+      address: ":5399"
+
 ingress
-  enabled  true
-  host     recing.lan
-  annotations  traefik defaults
+  enabled       true
+  host          recing.home.arpa
+  additionalHosts:
+    - bitfarm            ← k8s node hostname (DNS or /etc/hosts needed)
+  annotations
+    traefik.ingress.kubernetes.io/router.entrypoints: web,web-alt
 ```
 
 ---

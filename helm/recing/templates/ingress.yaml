@@ -12,8 +12,35 @@ metadata:
   {{- end }}
 spec:
   rules:
-  - host: {{ .Values.ingress.host }}
+{{- $host := .Values.ingress.host }}
+{{- if $host }}
+  - host: {{ $host }}
     http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-web
+            port:
+              number: 80
+{{- end }}
+{{- with .Values.ingress.additionalHosts }}
+{{- range . }}
+  - host: {{ . }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $.Release.Name }}-web
+            port:
+              number: 80
+{{- end }}
+{{- end }}
+  # Catch-all rule for IP-based access (192.168.x.x:port) and bare node hostname
+  - http:
       paths:
       - path: /
         pathType: Prefix

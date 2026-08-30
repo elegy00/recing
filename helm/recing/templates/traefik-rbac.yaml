@@ -1,0 +1,41 @@
+{{- if .Values.traefik.enabled }}
+# The patch Job runs in kube-system, so the SA must live there too.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-traefik-patch-sa
+  namespace: kube-system
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-failed
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-traefik-patch-role
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-failed
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["traefik-opts"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-traefik-patch-binding
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-failed
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-traefik-patch-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-traefik-patch-sa
+    namespace: {{ .Release.Namespace }}
+{{- end }}
