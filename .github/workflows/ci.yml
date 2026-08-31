@@ -147,10 +147,9 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           VALUES_FILE="helm/recing/values.yaml"
 
-          # Use sed to update the image.tag and migrate.tag in values.yaml
-          # We target the specific lines that set "tag: latest"
-          sed -i 's/^  tag: latest$/  tag: '"$VERSION"'/' "$VALUES_FILE"
-          sed -i '/^migrate:/,/^[^ ]/{ s/^  tag: latest$/  tag: '"$VERSION"'/ }' "$VALUES_FILE"
+          # Replace any existing semver tag (e.g. 0.0.1, latest) with the new version
+          sed -i 's/^  tag: [0-9][0-9.]*$/  tag: '"$VERSION"'/' "$VALUES_FILE"
+          sed -i '/^migrate:/,/^[^ ]/{ s/^  tag: [0-9][0-9.]*$/  tag: '"$VERSION"'/ }' "$VALUES_FILE"
 
           echo "Updated values.yaml to image.tag=$VERSION, migrate.tag=$VERSION"
           cat "$VALUES_FILE"
