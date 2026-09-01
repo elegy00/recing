@@ -34,18 +34,16 @@ export default function SubmitPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<h1
-				className="mb-3 text-3xl font-bold"
-				style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
-			>
+			<h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
 				{t("submit_title")}
 			</h1>
-			<p className="mb-8 max-w-xl text-[var(--text-secondary)] leading-relaxed">
+			<div className="mt-3 h-1 w-16 rounded-full bg-[var(--accent)]" />
+			<p className="mt-4 mb-8 max-w-xl text-lg leading-relaxed text-[var(--text-secondary)]">
 				{t("submit_description")}
 			</p>
 
 			<form onSubmit={handleSubmit}>
-				<div className="flex items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-5 shadow-sm">
+				<div className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
 					<input
 						ref={inputRef}
 						type="url"
@@ -53,19 +51,19 @@ export default function SubmitPage() {
 						value={url}
 						onChange={(e) => setUrl(e.target.value)}
 						autoFocus
-						className="flex-1 border-none bg-transparent px-2 py-1 text-[var(--text-primary)] outline-none placeholder:text-[#b0aea9] placeholder:italic"
+						className="min-w-0 flex-1 border-none bg-transparent px-2 py-1.5 text-lg text-[var(--text-primary)] outline-none placeholder:text-[#a89f8f] placeholder:italic"
 					/>
 					<button
 						type="submit"
 						disabled={status === "submitting" || !url.trim()}
-						className="shrink-0 whitespace-nowrap rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
+						className="btn-primary shrink-0 px-7 py-3 text-lg"
 					>
 						{t("submit_button")}
 					</button>
 				</div>
 			</form>
 
-			<p className="mt-4 min-h-[20px] text-sm italic text-[var(--text-secondary)]">
+			<p className="mt-4 min-h-[24px] text-base italic text-[var(--text-secondary)]">
 				{status === "idle" && t("submit_status_idle")}
 				{status === "submitting" && (
 					<>

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { listRecipes } from "../api/server-functions";
 import { formatDuration } from "../utils/formatTime";
+import { Figs } from "../components/Motifs";
 import type { Job } from "../types";
 
 export default function RecipeListPage() {
@@ -31,19 +32,23 @@ export default function RecipeListPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<h1
-				className="mb-3 text-3xl font-bold"
-				style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
-			>
-				{t("recipes_title")}
-			</h1>
-			<p className="mb-8 max-w-xl text-[var(--text-secondary)] leading-relaxed">
-				{t("recipes_description")}
-			</p>
+			{/* Page header */}
+			<div className="mb-10 flex items-end justify-between gap-6">
+				<div>
+					<h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
+						{t("recipes_title")}
+					</h1>
+					<div className="mt-3 h-1 w-16 rounded-full bg-[var(--accent)]" />
+					<p className="mt-4 max-w-xl text-lg leading-relaxed text-[var(--text-secondary)]">
+						{t("recipes_description")}
+					</p>
+				</div>
+				<Figs className="mb-1 hidden h-20 w-32 shrink-0 sm:block" />
+			</div>
 
 			{/* Loading */}
 			{loading && (
-				<p className="text-[var(--text-secondary)]">
+				<p className="text-lg text-[var(--text-secondary)]">
 					<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--accent)] align-middle" />
 					{t("recipes_loading")}
 				</p>
@@ -51,16 +56,21 @@ export default function RecipeListPage() {
 
 			{/* Error */}
 			{!loading && error && (
-				<p className="text-red-600">
+				<p className="text-lg text-[var(--accent-deep)]">
 					{t("submit_status_error_prefix")} {error}
 				</p>
 			)}
 
 			{/* Empty state */}
 			{!loading && !error && jobs.length === 0 && (
-				<div className="py-20 text-center text-[var(--text-secondary)]">
-					{jobs.length === 0 &&
-						"Keine Rezepte gefunden. Reiche eine URL ein, um zu beginnen."}
+				<div className="card flex flex-col items-center gap-4 px-6 py-16 text-center">
+					<Figs className="h-20 w-32" />
+					<p className="max-w-md text-lg leading-relaxed text-[var(--text-secondary)]">
+						Keine Rezepte gefunden. Reiche eine URL ein, um zu beginnen.
+					</p>
+					<Link to="/submit" className="btn-primary mt-2">
+						{t("nav_submit")}
+					</Link>
 				</div>
 			)}
 
@@ -79,46 +89,37 @@ export default function RecipeListPage() {
 		const ext = job.result ?? null;
 		if (!ext?.recipeName) return null;
 
-		const hasTimeInfo =
-			ext.prepTime || ext.cookTime || ext.totalTime;
-
 		return (
 			<div key={job._id} className="relative">
 				<Link
 					to="/recipes/$id"
 					params={{ id: job._id }}
-					className="block rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-sm transition-colors duration-150 hover:border-[var(--accent)] hover:shadow-md cursor-pointer no-underline text-inherit"
+					className="card group block p-6 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md text-inherit"
 				>
-					{hasTimeInfo && (
-						<div className="mb-3 flex gap-4 text-xs text-[var(--text-secondary)]">
+					{(ext.prepTime || ext.cookTime || ext.totalTime) && (
+						<div className="mb-4 flex flex-wrap gap-2">
 							{ext.prepTime && (
-								<span>
-									{t("card_prep")}: {formatDuration(ext.prepTime)}
+								<span className="chip">
+									{t("card_prep")} · {formatDuration(ext.prepTime)}
 								</span>
 							)}
 							{ext.cookTime && (
-								<span>
-									{t("card_cook")}: {formatDuration(ext.cookTime)}
+								<span className="chip">
+									{t("card_cook")} · {formatDuration(ext.cookTime)}
 								</span>
 							)}
 							{ext.totalTime && !ext.prepTime && !ext.cookTime && (
-								<span>
-									{t("detail_total")}: {formatDuration(ext.totalTime)}
+								<span className="chip">
+									{t("detail_total")} · {formatDuration(ext.totalTime)}
 								</span>
 							)}
 						</div>
 					)}
-					<h3
-						className="mb-1 text-xl font-bold"
-						style={{
-							fontFamily: "'EB Garamond', Georgia, serif",
-							wordBreak: "break-word",
-						}}
-					>
+					<h3 className="mb-1.5 font-serif text-2xl font-semibold leading-snug break-words group-hover:text-[var(--accent-deep)]">
 						{ext.recipeName}
 					</h3>
 					{ext.description && (
-						<p className="line-clamp-1 text-sm text-[var(--text-secondary)]">
+						<p className="line-clamp-2 text-base leading-relaxed text-[var(--text-secondary)]">
 							{ext.description}
 						</p>
 					)}

@@ -1,146 +1,101 @@
 # Design Tokens
 
-Core design values used throughout the application for consistent implementation.
+Implemented in `packages/web/src/styles.css` (CSS variables + Tailwind v4 `@theme`).
+This document describes the **actual** tokens — keep it in sync when changing styles.
+
+## Concept
+
+Warm Mediterranean kitchen: cream paper, terracotta clay, olive green, fig purple.
+Serif display type (EB Garamond) for headings, Inter for UI text.
+Primary target: **iPad in the kitchen** → large base size, big touch targets,
+no hover-dependent interactions.
+
+```
+        ┌─────────────────────────────────────────────┐
+        │  🫒 Recing          Rezepte  Verarbeitung   │  header: cream, olive sprig mark
+        ├─────────────────────────────────────────────┤
+        │                                             │
+        │  Rezepte ─── (terracotta rule)              │  H1: EB Garamond 2.5rem
+        │  Alle extrahierten Rezepte ...      🍑🍑    │  fig motif, decorative
+        │                                             │
+        │  ┌─────────────────────────────────────┐   │
+        │  │ (Vorbereitung · 25h) (Kochen · 25h) │   │  chips: olive-soft pills
+        │  │ Bündner Gratin                       │   │  card title: serif 1.5rem
+        │  │ Die schnellste Art, Capuns ...       │   │
+        │  └─────────────────────────────────────┘   │  card: cream surface, sand border
+        │                                             │
+        │      [ Kochen ]  (terracotta pill button)   │
+        └─────────────────────────────────────────────┘
+```
 
 ## Color Palette
 
-### Primary Colors
+### Warm neutrals
 ```
-Primary-900:   #[HEX]  // Darkest - hover states, emphasis
-Primary-700:   #[HEX]  // Dark - primary actions
-Primary-500:   #[HEX]  // Base - main brand color
-Primary-300:   #[HEX]  // Light - backgrounds, subtle elements
-Primary-100:   #[HEX]  // Lightest - tints, very subtle backgrounds
-```
-
-### Secondary Colors
-```
-Secondary-900: #[HEX]
-Secondary-700: #[HEX]
-Secondary-500: #[HEX]
-Secondary-300: #[HEX]
-Secondary-100: #[HEX]
+--bg:             #f4eee0   page background (warm cream)
+--card-bg:        #fcf9f1   cards & surfaces (lighter cream)
+--text-primary:   #2c2822   warm near-black
+--text-secondary: #6f675a   warm taupe
+--border:         #e2d8c4   sand
 ```
 
-### Neutral Colors
+### Terracotta — primary accent (actions, emphasis)
 ```
-Gray-900:      #[HEX]  // Near black - primary text
-Gray-700:      #[HEX]  // Dark gray - secondary text
-Gray-500:      #[HEX]  // Mid gray - borders, dividers
-Gray-300:      #[HEX]  // Light gray - disabled states
-Gray-100:      #[HEX]  // Very light gray - backgrounds
-White:         #FFFFFF
-Black:         #000000
+--accent:      #b04e33   buttons, active nav, rules, list markers
+--accent-deep: #96402a   hover states
+--accent-soft: #f2ded3   tinted backgrounds (badges, selection)
 ```
 
-### Semantic Colors
+### Olive — secondary accent (meta info, success-ish states)
 ```
-Success-700:   #[HEX]  // Dark green
-Success-500:   #[HEX]  // Base green
-Success-100:   #[HEX]  // Light green background
+--olive:      #5c6b3c   sprig motif, links
+--olive-deep: #4c5931   hover / emphasis
+--olive-soft: #e7e6d2   chip backgrounds
+```
 
-Warning-700:   #[HEX]  // Dark yellow/orange
-Warning-500:   #[HEX]  // Base yellow/orange
-Warning-100:   #[HEX]  // Light yellow/orange background
-
-Error-700:     #[HEX]  // Dark red
-Error-500:     #[HEX]  // Base red
-Error-100:     #[HEX]  // Light red background
-
-Info-700:      #[HEX]  // Dark blue
-Info-500:      #[HEX]  // Base blue
-Info-100:      #[HEX]  // Light blue background
+### Fig — tertiary accent (decorative only)
+```
+--fig: #7a4a5f   fig motif, photo-job markers
 ```
 
 ## Typography
 
-### Font Families
 ```
-Primary:       "[Font Name]", sans-serif
-Secondary:     "[Font Name]", serif  // If needed for headings/special use
-Monospace:     "Courier New", monospace  // For code, data
+Serif (display):  "EB Garamond", Georgia, serif    headings, recipe names, step text
+Sans (UI):        "Inter", system-ui, sans-serif   body, buttons, meta
 ```
 
-### Font Sizes
+- Root font size: **17px** (kitchen readability; all rem sizes scale with it)
+- Page title: `text-4xl` serif · Card title: `text-2xl` serif · Body: `text-base`
+- Eyebrow labels: uppercase, `tracking-[0.18em]`, terracotta (`.eyebrow`)
+
+Fonts load via a single `<link>` in `routes/__root.tsx` with preconnects to
+`fonts.googleapis.com` / `fonts.gstatic.com`. Do not add CSS `@import` for fonts.
+
+## Components (in `styles.css`, `@layer components`)
+
 ```
-Display:       48px / 3rem     // Large marketing headings
-H1:            32px / 2rem     // Page titles
-H2:            24px / 1.5rem   // Section headings
-H3:            20px / 1.25rem  // Subsection headings
-H4:            18px / 1.125rem // Component headings
-Body-Large:    16px / 1rem     // Emphasis text
-Body:          14px / 0.875rem // Standard text
-Body-Small:    12px / 0.75rem  // Helper text, captions
+.card         cream surface, sand border, rounded-xl, shadow-sm
+.btn-primary  terracotta pill, white text, hover → accent-deep
+.btn-outline  cream pill, sand border, hover → terracotta text/border
+.chip         olive-soft pill for meta (times, servings)
+.eyebrow      uppercase terracotta label above section titles
 ```
 
-### Font Weights
+## Motifs
+
+Inline SVGs in `src/components/Motifs.tsx` (no image assets):
+
 ```
-Light:         300
-Regular:       400
-Medium:        500
-Semibold:      600
-Bold:          700
+OliveSprig    header logo mark + footer divider accent
+Figs          decorative fig pair on the recipe list page
+SprigDivider  thin olive branch used as a section divider
 ```
 
-### Line Heights
-```
-Tight:         1.2   // Headings
-Normal:        1.5   // Body text
-Relaxed:       1.75  // Long form content
-```
+Keep motifs subtle: small, low-contrast, never blocking content.
 
-## Spacing Scale
+## Interaction rules (touch-first)
 
-Based on 4px base unit:
-```
-xs:   4px   / 0.25rem
-sm:   8px   / 0.5rem
-md:   16px  / 1rem
-lg:   24px  / 1.5rem
-xl:   32px  / 2rem
-2xl:  48px  / 3rem
-3xl:  64px  / 4rem
-```
-
-## Border Radius
-```
-none:   0px
-sm:     2px
-md:     4px
-lg:     8px
-xl:     12px
-full:   9999px  // Pills, circular elements
-```
-
-## Shadows
-```
-sm:   0 1px 2px rgba(0, 0, 0, 0.05)
-md:   0 4px 6px rgba(0, 0, 0, 0.1)
-lg:   0 10px 15px rgba(0, 0, 0, 0.1)
-xl:   0 20px 25px rgba(0, 0, 0, 0.15)
-```
-
-## Z-Index Layers
-```
-Base:          0
-Dropdown:      1000
-Sticky:        1020
-Modal:         1030
-Popover:       1040
-Tooltip:       1050
-```
-
-## Transitions
-```
-Fast:          150ms ease-in-out
-Normal:        300ms ease-in-out
-Slow:          500ms ease-in-out
-```
-
-## Implementation Notes
-
-- All values should be defined as CSS variables or design tokens
-- Use semantic naming (e.g., `color-primary` not `color-blue`)
-- Maintain consistency across all UI components
-- Update version-specific files (v1/, v2/) with concrete values
-- Reference inspiration images when making color/font decisions
+- No hover-only affordances (e.g. remove buttons must be always visible)
+- Touch targets ≥ ~44px (buttons use `py-3` + `text-base`)
+- Active nav state is a persistent pill, not a hover effect

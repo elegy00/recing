@@ -1,14 +1,26 @@
-@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;700&family=Inter:wght@400;500&display=swap");
 @import "tailwindcss";
 
-/* ── Recing brand tokens ──────────────────────────────────────────────── */
+/* ── Recing design tokens — Mediterranean palette ─────────────────────── */
 :root {
-  --accent: #d9665b;
-  --bg: #f5f4f0;
-  --card-bg: #ffffff;
-  --text-primary: #1a1a1a;
-  --text-secondary: #737373;
-  --border: #e2e0db;
+  /* Warm neutrals */
+  --bg: #f4eee0; /* warm cream page background */
+  --card-bg: #fcf9f1; /* lighter cream for cards & surfaces */
+  --text-primary: #2c2822; /* warm near-black */
+  --text-secondary: #6f675a; /* warm taupe */
+  --border: #e2d8c4; /* sand */
+
+  /* Terracotta (primary accent) */
+  --accent: #b04e33;
+  --accent-deep: #96402a; /* hover */
+  --accent-soft: #f2ded3; /* tint backgrounds */
+
+  /* Olive (secondary accent) */
+  --olive: #5c6b3c;
+  --olive-deep: #4c5931;
+  --olive-soft: #e7e6d2;
+
+  /* Fig (tertiary accent, decorative) */
+  --fig: #7a4a5f;
 }
 
 @theme {
@@ -23,10 +35,54 @@
  * silently defeat every Tailwind margin/padding utility in the app.
  */
 @layer base {
+  /* Larger root size: the primary target is an iPad used in the kitchen,
+     where text must stay readable from a distance. All rem-based Tailwind
+     sizes scale up with this. */
+  html {
+    font-size: 17px;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--bg);
     color: var(--text-primary);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--accent-deep);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Shared component classes ─────────────────────────────────────────── */
+@layer components {
+  .card {
+    @apply rounded-xl border border-[var(--border)] bg-[var(--card-bg)] shadow-sm;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-6 py-3 text-base font-medium text-white transition-colors duration-150 hover:bg-[var(--accent-deep)] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card-bg)] px-5 py-3 text-base font-medium text-[var(--text-primary)] transition-colors duration-150 hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  /* Small rounded label, e.g. times & servings on recipe cards */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-[var(--olive-soft)] px-3 py-1 text-sm text-[var(--text-secondary)];
+  }
+
+  /* Uppercase eyebrow label above section titles */
+  .eyebrow {
+    @apply text-sm font-medium uppercase tracking-[0.18em] text-[var(--accent)];
   }
 }

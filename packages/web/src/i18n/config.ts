@@ -33,6 +33,10 @@ export function initI18n(): void {
 		ns: ["translation"],
 		interpolation: {
 			escapeValue: false, // React already escapes
+			// i18next v26 changed the default delimiters to "{{ }}"; our
+			// translations use single braces, so pin them explicitly.
+			prefix: "{",
+			suffix: "}",
 		},
 	});
 }

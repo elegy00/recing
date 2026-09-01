@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-	listRecipes,
-	listPhotoJobs,
-} from "../api/server-functions";
+import { listRecipes, listPhotoJobs } from "../api/server-functions";
 
 type JobSource = "url" | "photo";
 type Status = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
@@ -35,8 +32,14 @@ export default function IngestPage() {
 		try {
 			setLoading(true);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
-			const urlData = (await (listRecipes as any)({})) as { recipes: any[] };
-			const photoData = (await (listPhotoJobs as any)({})) as { jobs: PhotoJobEntry[] };
+			const urlData = (await (listRecipes as any)({
+				data: { status: "all" },
+			})) as {
+				recipes: any[];
+			};
+			const photoData = (await (listPhotoJobs as any)({})) as {
+				jobs: PhotoJobEntry[];
+			};
 
 			// Convert URL jobs to ingest entries
 			const urlEntries: IngestEntry[] = urlData.recipes
@@ -57,18 +60,23 @@ export default function IngestPage() {
 					_id: j._id,
 					source: "photo" as JobSource,
 					urlOrTitle: `${j.totalPhotos} Foto${j.totalPhotos > 1 ? "s" : ""}`,
-					status: (j.status === "CHUNKING" || j.status === "MERGING")
-						? "PROCESSING"
-						: (j.status as Status),
+					status:
+						j.status === "CHUNKING" || j.status === "MERGING"
+							? "PROCESSING"
+							: (j.status as Status),
 					createdAt: j.createdAt,
 					error: j.error ?? null,
 				}));
 
-			setEntries([...urlEntries, ...photoEntries].sort(
-				(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-			));
-		} catch (_err) {
-			// silently ignore — stale data is better than nothing
+			setEntries(
+				[...urlEntries, ...photoEntries].sort(
+					(a, b) =>
+						new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+				),
+			);
+		} catch (err) {
+			// Keep the last good data, but never fail silently
+			console.error("Failed to fetch ingest jobs", err);
 		} finally {
 			setLoading(false);
 		}
@@ -91,16 +99,14 @@ export default function IngestPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<h1
-				className="mb-2 text-3xl font-bold"
-				style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
-			>
+			<h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
 				{t("ingest_title")}
 			</h1>
-			<p className="mb-6 text-sm text-[var(--text-secondary)]">
+			<div className="mt-3 mb-6 h-1 w-16 rounded-full bg-[var(--accent)]" />
+			<p className="mb-6 text-base text-[var(--text-secondary)]">
 				{entries.length > 0 && (
 					<span>{t("ingest_job_count", { count: entries.length })}</span>
-				)}{" "}
+				)}
 			</p>
 
 			{/* Polling indicator */}
@@ -110,32 +116,35 @@ export default function IngestPage() {
 			</div>
 
 			{/* Table */}
-			<div className="overflow-hidden rounded-lg border border-[var(--border)]">
-				<table className="w-full text-sm">
-					<thead className="bg-[var(--card-bg)]">
-						<tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--text-secondary)]">
-							<th className="px-4 py-3 font-medium">{t("ingest_url")}</th>
-							<th className="w-28 px-4 py-3 font-medium">
+			<div className="card overflow-hidden">
+				<table className="w-full text-base">
+					<thead className="bg-[var(--olive-soft)]/60">
+						<tr className="border-b border-[var(--border)] text-left text-sm uppercase tracking-wider text-[var(--text-secondary)]">
+							<th className="px-5 py-3.5 font-medium">{t("ingest_url")}</th>
+							<th className="w-48 px-5 py-3.5 font-medium">
 								{t("ingest_status")}
 							</th>
-							<th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-[var(--text-secondary)]">
+							<th className="px-6 py-3.5 text-right text-sm uppercase tracking-wider text-[var(--text-secondary)]">
 								{t("ingest_submitted")}
 							</th>
 						</tr>
 					</thead>
 					<tbody>
 						{entries.map((entry) => (
-							<tr key={entry._id} className="border-b border-[var(--border)] transition-colors hover:bg-gray-50">
-								<td className="max-w-xs truncate px-4 py-3 text-[var(--text-primary)]">
+							<tr
+								key={entry._id}
+								className="border-b border-[var(--border)] transition-colors last:border-b-0 hover:bg-[var(--accent-soft)]/40"
+							>
+								<td className="max-w-xs truncate px-5 py-3.5 text-[var(--text-primary)]">
 									{entry.source === "photo" && (
-										<span className="mr-2 inline-block h-2 w-2 rounded-full bg-purple-500" />
+										<span className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--fig)]" />
 									)}
 									{truncate(entry.urlOrTitle, 60)}
 								</td>
-								<td className="px-4 py-3">
+								<td className="px-5 py-3.5">
 									<StatusBadge status={entry.status} />
 								</td>
-								<td className="px-6 py-3 text-right text-[var(--text-secondary)]">
+								<td className="px-6 py-3.5 text-right tabular-nums text-[var(--text-secondary)]">
 									{timeAgo(entry.createdAt)}
 								</td>
 							</tr>
@@ -155,23 +164,23 @@ export default function IngestPage() {
 	function StatusBadge({ status }: { status: Status }) {
 		if (status === "PENDING") {
 			return (
-				<span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-					<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-500" />
+				<span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--accent-soft)] px-3 py-1 text-sm font-medium text-[var(--accent-deep)]">
+					<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
 					{t("ingest_pending")}
 				</span>
 			);
 		}
 		if (status === "PROCESSING") {
 			return (
-				<span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-					<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+				<span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--olive-soft)] px-3 py-1 text-sm font-medium text-[var(--olive-deep)]">
+					<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--olive)]" />
 					{t("ingest_processing")}
 				</span>
 			);
 		}
 		if (status === "FAILED") {
 			return (
-				<span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+				<span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#f0d9d2] px-3 py-1 text-sm font-medium text-[#8c3a2b]">
 					{t("ingest_failed")}
 				</span>
 			);

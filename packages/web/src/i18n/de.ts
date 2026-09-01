@@ -10,7 +10,7 @@ export default {
 	footer_help: "Hilfe",
 
 	// ── SubmitPage ────────────────────────────────────────────
-	submit_title: "REZEPT-URL EINREICHEN",
+	submit_title: "Rezept-URL einreichen",
 	submit_description:
 		"Füge die URL eines Rezeits ein und wir extrahieren alle Details mit unserem lokalen KI-Modell.",
 	submit_placeholder: "https://beispiel.de/schokoladenkuchen",
@@ -21,7 +21,7 @@ export default {
 	submit_status_error_prefix: "Fehler:",
 
 	// ── RecipeListPage (Landing) ──────────────────────────────
-	recipes_title: "REZEPTE",
+	recipes_title: "Rezepte",
 	recipes_description: "Alle extrahierten Rezepte aus eingereichten URLs.",
 	filter_all: "Alle",
 	filter_completed: "Erledigt",
@@ -29,8 +29,7 @@ export default {
 	filter_processing: "Verarbeitung …",
 	filter_failed: "Fehlgeschlagen",
 	recipes_loading: "Wird geladen …",
-	recipes_empty:
-		"Keine Rezepte gefunden. {tryFilter, select, other[Versuche einen anderen Filter.]}",
+	recipes_empty: "Keine Rezepte gefunden. Versuche einen anderen Filter.",
 	card_cook: "Kochen",
 	card_prep: "Vorbereitung",
 
@@ -38,15 +37,15 @@ export default {
 	detail_not_found: "Rezept nicht gefunden",
 	detail_not_found_message: "Dieses Rezept konnte nicht gefunden werden.",
 	detail_back_to_recipes: "← Zurück zu den Rezepten",
-	detail_start_cooking: "🍳 Kochen starten",
+	detail_start_cooking: "Kochen starten",
 	detail_prep: "Vorbereitung",
 	detail_cook: "Kochen",
 	detail_total: "Gesamt",
 	detail_servings: "Portionen",
 	detail_ingredients: "Zutaten",
 	detail_instructions: "Anleitung",
-	detail_reprocess: "↻ Rezept erneut verarbeiten",
-	detail_delete: "🗑 Rezept löschen",
+	detail_reprocess: "Rezept erneut verarbeiten",
+	detail_delete: "Rezept löschen",
 
 	// ── Cook mode ─────────────────────────────────────────────
 	cook_exit: "← Kochmodus beenden",
@@ -71,9 +70,11 @@ export default {
 	reset_failed: "Zurücksetzen fehlgeschlagen:",
 
 	// ── IngestPage ────────────────────────────────────────────
-	ingest_title: "VERARBEITUNG",
+	ingest_title: "Verarbeitung",
 	ingest_loading: "Wird geladen …",
-	ingest_job_count: "{count, plural, =0 {Keine Rezepte} =1 {Ein Rezept in Bearbeitung} other {{count} Rezepte in Bearbeitung}}",
+	// i18next plurals use key suffixes (_one/_other), not ICU inline syntax
+	ingest_job_count_one: "Ein Rezept in Bearbeitung",
+	ingest_job_count_other: "{count} Rezepte in Bearbeitung",
 	ingest_polling: "Aktualisiert sich automatisch…",
 	ingest_url: "URL",
 	ingest_status: "Status",
@@ -85,10 +86,11 @@ export default {
 	ingest_now: "Gerade eben",
 
 	// ── PhotoUploadPage ───────────────────────────────────────
-	photo_upload_title: "REZEPT VOM FOTO EINREICHEN",
+	photo_upload_title: "Rezept vom Foto einreichen",
 	photo_upload_description:
 		"Füge 1 oder mehr Fotos von Rezepten ein. Unser KI-Modell extrahiert automatisch alle Zutaten, Anleitungen und Details.",
-	photo_count: "{count} Foto{count, plural, one {} other [s]} ausgewählt",
+	photo_count_one: "1 Foto ausgewählt",
+	photo_count_other: "{count} Fotos ausgewählt",
 	photo_submit: "Einreichen →",
 	photo_submitted: "✓ Wird verarbeitet! Weiterleitung …",
 	photo_submitting: "Wird eingereicht …",
