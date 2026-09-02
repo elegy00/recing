@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { submitPhotoJob } from "../api/photo-jobs";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { PhotoUpload } from "../components/organisms/photo-upload/PhotoUpload";
-import { submitPhotoJob } from "../api/photo-jobs";
 
 type Status = "idle" | "submitting" | "submitted" | "error";
 
@@ -11,6 +11,16 @@ interface PhotoItem {
 	id: string;
 	dataUri: string;
 	previewUrl: string;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(reader.result as string);
+		reader.onerror = () =>
+			reject(reader.error ?? new Error("Failed to read file"));
+		reader.readAsDataURL(file);
+	});
 }
 
 export default function PhotoUploadPage() {
@@ -22,20 +32,37 @@ export default function PhotoUploadPage() {
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	function handleFiles(files: FileList | null) {
-		if (!files) return;
-		const newPhotos: PhotoItem[] = [];
-		Array.from(files).forEach((file) => {
-			const reader = new FileReader();
-			reader.onload = () => {
-				newPhotos.push({ id: crypto.randomUUID(), dataUri: reader.result as string, previewUrl: URL.createObjectURL(file) });
-			};
-			reader.readAsDataURL(file);
-		});
-		setTimeout(() => setPhotos((prev) => [...prev, ...newPhotos]), 100);
+	// Track current photos so object URLs can be revoked on unmount.
+	const photosRef = useRef<PhotoItem[]>([]);
+	useEffect(() => {
+		photosRef.current = photos;
+	}, [photos]);
+
+	useEffect(() => {
+		return () => {
+			for (const p of photosRef.current) URL.revokeObjectURL(p.previewUrl);
+		};
+	}, []);
+
+	async function handleFiles(files: FileList | null) {
+		if (!files || files.length === 0) return;
+		try {
+			const items = await Promise.all(
+				Array.from(files).map(async (file) => ({
+					id: crypto.randomUUID(),
+					dataUri: await fileToDataUrl(file),
+					previewUrl: URL.createObjectURL(file),
+				})),
+			);
+			setPhotos((prev) => [...prev, ...items]);
+		} catch (err) {
+			console.error("Failed to read files", err);
+		}
 	}
 
 	function removePhoto(id: string) {
+		const target = photos.find((p) => p.id === id);
+		if (target) URL.revokeObjectURL(target.previewUrl);
 		setPhotos((prev) => prev.filter((p) => p.id !== id));
 	}
 
@@ -44,7 +71,9 @@ export default function PhotoUploadPage() {
 		setStatus("submitting");
 		setErrorMsg(null);
 		try {
-			await submitPhotoJob({ data: { photos: photos.map((p) => ({ dataUri: p.dataUri })) } });
+			await submitPhotoJob({
+				data: { photos: photos.map((p) => ({ dataUri: p.dataUri })) },
+			});
 			setStatus("submitted");
 			setTimeout(() => navigate({ to: "/ingest" }), 1000);
 		} catch (err) {
