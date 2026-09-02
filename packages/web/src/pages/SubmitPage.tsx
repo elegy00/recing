@@ -21,8 +21,7 @@ export default function SubmitPage() {
 		setErrorMsg(null);
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
-			await (submitRecipe as any)({ data: { url: url.trim() } });
+			await submitRecipe({ data: { url: url.trim() } });
 			setStatus("submitted");
 			setTimeout(() => navigate({ to: "/" }), 600);
 		} catch (err) {

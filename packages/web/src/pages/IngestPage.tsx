@@ -21,8 +21,7 @@ export default function IngestPage() {
 	const fetchJobs = useCallback(async () => {
 		try {
 			setLoading(true);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn strict mode
-			const urlData = (await (listRecipes as any)({ data: { status: "all" } })) as { recipes: any[] };
+			const urlData = await listRecipes({ data: { status: "all" } });
 			const photoData = await listPhotoJobs();
 
 			function toEntry(source: "url" | "photo", j: any): IngestEntry {

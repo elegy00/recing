@@ -44,7 +44,7 @@ export default function PhotoUploadPage() {
 		setStatus("submitting");
 		setErrorMsg(null);
 		try {
-			await (submitPhotoJob as any)({ data: { photos: photos.map((p) => ({ dataUri: p.dataUri })) } });
+			await submitPhotoJob({ data: { photos: photos.map((p) => ({ dataUri: p.dataUri })) } });
 			setStatus("submitted");
 			setTimeout(() => navigate({ to: "/ingest" }), 1000);
 		} catch (err) {

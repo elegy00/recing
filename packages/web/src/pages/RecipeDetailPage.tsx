@@ -25,8 +25,7 @@ export default function RecipeDetailPage() {
 		(async () => {
 			try {
 				setLoading(true); setError(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
-				const data = (await (getRecipe as any)({ data: { id } })) as { recipe: Job | null; error?: string };
+				const data = await getRecipe({ data: { id } });
 				setJob(data.recipe);
 			} catch (err) { setError(err instanceof Error ? err.message : "Failed to load recipe"); }
 			finally { setLoading(false); }
@@ -40,10 +39,10 @@ export default function RecipeDetailPage() {
 	function toggleIngredient(idx: number) { setCheckedIngredients((prev) => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; }); }
 
 	async function onConfirmDelete() {
-		try { await (deleteRecipe as any)({ data: { id } }); navigate({ to: "/", replace: true }); } catch { setConfirmAction(null); }
+		try { await deleteRecipe({ data: { id } }); navigate({ to: "/", replace: true }); } catch { setConfirmAction(null); }
 	}
 	async function onConfirmReset() {
-		try { await (retryRecipe as any)({ data: { id } }); setJob((p) => p ? { ...p, status: "PENDING", result: null, error: null } : null); } catch { setConfirmAction(null); }
+		try { await retryRecipe({ data: { id } }); setJob((p) => p ? { ...p, status: "PENDING", result: null, error: null } : null); } catch { setConfirmAction(null); }
 	}
 
 	if (loading) return <div className="mx-auto max-w-4xl px-6 py-12 text-lg text-[var(--text-secondary)]">Laden...</div>;

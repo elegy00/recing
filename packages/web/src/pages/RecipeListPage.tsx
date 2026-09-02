@@ -16,8 +16,7 @@ export default function RecipeListPage() {
 		try {
 			setLoading(true);
 			setError(null);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server fn with strict: false
-			const data = (await (listRecipes as any)({})) as { recipes: Job[] };
+			const data = await listRecipes();
 			setJobs(data.recipes);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to load");

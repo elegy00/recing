@@ -5,6 +5,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getPool, toIsoString } from "./db";
 import { isUuid } from "../utils/uuid";
+import { requireId } from "./validators";
 
 /** Map photo job DB row to frontend type. */
 function mapPhotoJobRow(row: Record<string, unknown>): {
@@ -69,24 +70,24 @@ function mapPhotoChunkRow(row: Record<string, unknown>): {
 
 // ─── POST /api/photo-jobs — Submit photos for ingestion ──────────────────
 
-export const submitPhotoJob = createServerFn({
-	method: "POST",
-	strict: false,
-}).handler(async (ctx) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- data shape is controlled by caller
-	const data = ctx.data as any;
-	const photos: Array<{ dataUri: string }> | undefined = data?.photos;
-
-	if (!photos || !Array.isArray(photos) || photos.length === 0) {
-		throw new Error("At least one photo is required");
-	}
-
-	// Validate each photo URI (must be base64-encoded image)
-	for (let i = 0; i < photos.length; i++) {
-		if (!photos[i]?.dataUri || !photos[i].dataUri.startsWith("data:image/")) {
-			throw new Error(`Photo ${i + 1} is not a valid base64-encoded image`);
+export const submitPhotoJob = createServerFn({ method: "POST" }).validator(
+	(data: { photos?: unknown }) => {
+		const photos = data?.photos;
+		if (!Array.isArray(photos) || photos.length === 0) {
+			throw new Error("At least one photo is required");
 		}
-	}
+		for (let i = 0; i < photos.length; i++) {
+			const uri = (photos[i] as { dataUri?: unknown })?.dataUri;
+			if (typeof uri !== "string" || !uri.startsWith("data:image/")) {
+				throw new Error(
+					`Photo ${i + 1} is not a valid base64-encoded image`,
+				);
+			}
+		}
+		return { photos: photos as Array<{ dataUri: string }> };
+	},
+).handler(async (ctx) => {
+	const photos = ctx.data.photos;
 
 	const pool = getPool();
 	const jobId = crypto.randomUUID();
@@ -121,48 +122,44 @@ export const submitPhotoJob = createServerFn({
 
 // ─── GET /api/photo-jobs — List photo jobs (non-completed by default) ────
 
-export const listPhotoJobs = createServerFn({
-	method: "GET",
-	strict: false,
-}).handler(async () => {
-	// Non-completed photo jobs (used by the ingest overview)
-	const res = await getPool().query(
-		"SELECT * FROM photo_jobs WHERE status != 'COMPLETED' ORDER BY created_at ASC",
-	);
-	return { jobs: res.rows.map(mapPhotoJobRow) };
-});
+export const listPhotoJobs = createServerFn({ method: "GET" }).handler(
+	async () => {
+		// Non-completed photo jobs (used by the ingest overview)
+		const res = await getPool().query(
+			"SELECT * FROM photo_jobs WHERE status != 'COMPLETED' ORDER BY created_at ASC",
+		);
+		return { jobs: res.rows.map(mapPhotoJobRow) };
+	},
+);
 
 // ─── GET /api/photo-jobs/:id — Get single photo job with chunks ──────────
 
-export const getPhotoJob = createServerFn({
-	method: "GET",
-	strict: false,
-}).handler(async (ctx) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- data shape controlled by caller
-	const data = ctx.data as any;
-	const id = data?.id;
+export const getPhotoJob = createServerFn({ method: "GET" })
+	.validator(requireId)
+	.handler(async (ctx) => {
+		const { id } = ctx.data;
 
-	if (!isUuid(id)) {
-		return { job: null, error: "Job not found" };
-	}
+		if (!isUuid(id)) {
+			return { job: null, error: "Job not found" };
+		}
 
-	const pool = getPool();
-	const jobRes = await pool.query("SELECT * FROM photo_jobs WHERE id = $1", [
-		id,
-	]);
-	if (jobRes.rows.length === 0) {
-		return { job: null, error: "Job not found" };
-	}
+		const pool = getPool();
+		const jobRes = await pool.query("SELECT * FROM photo_jobs WHERE id = $1", [
+			id,
+		]);
+		if (jobRes.rows.length === 0) {
+			return { job: null, error: "Job not found" };
+		}
 
-	const chunksRes = await pool.query(
-		`SELECT c.*, p.data_uri, p.content_type \
+		const chunksRes = await pool.query(
+			`SELECT c.*, p.data_uri, p.content_type \
        FROM photo_chunks c LEFT JOIN photos p ON c.photo_id = p.id \
        WHERE c.job_id = $1 ORDER BY c.order_num ASC`,
-		[id],
-	);
+			[id],
+		);
 
-	const job = mapPhotoJobRow(jobRes.rows[0]);
-	const chunks = chunksRes.rows.map(mapPhotoChunkRow);
+		const job = mapPhotoJobRow(jobRes.rows[0]);
+		const chunks = chunksRes.rows.map(mapPhotoChunkRow);
 
-	return { job, chunks };
-});
+		return { job, chunks };
+	});
