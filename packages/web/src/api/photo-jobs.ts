@@ -7,8 +7,7 @@ import { getPool, toIsoString } from "./db";
 import { isUuid } from "../utils/uuid";
 import { requireId } from "./validators";
 
-/** Map photo job DB row to frontend type. */
-function mapPhotoJobRow(row: Record<string, unknown>): {
+export interface PhotoJob {
 	_id: string;
 	status: string;
 	totalPhotos: number;
@@ -16,7 +15,20 @@ function mapPhotoJobRow(row: Record<string, unknown>): {
 	error?: string | null;
 	result?: any;
 	createdAt: string;
-} {
+}
+
+export interface PhotoChunk {
+	_id: string;
+	jobId: string;
+	orderNum: number;
+	status: string;
+	dataUri?: string | null;
+	extractedJson?: any;
+	error?: string | null;
+}
+
+/** Map photo job DB row to frontend type. */
+function mapPhotoJobRow(row: Record<string, unknown>): PhotoJob {
 	const r = row as {
 		id: string;
 		status: string;
@@ -38,15 +50,7 @@ function mapPhotoJobRow(row: Record<string, unknown>): {
 }
 
 /** Map photo chunk DB row to frontend type. */
-function mapPhotoChunkRow(row: Record<string, unknown>): {
-	_id: string;
-	jobId: string;
-	orderNum: number;
-	status: string;
-	dataUri?: string | null;
-	extractedJson?: any;
-	error?: string | null;
-} {
+function mapPhotoChunkRow(row: Record<string, unknown>): PhotoChunk {
 	const r = row as {
 		id: string;
 		job_id: string;

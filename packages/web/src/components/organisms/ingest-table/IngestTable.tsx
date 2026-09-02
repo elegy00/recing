@@ -1,4 +1,6 @@
-interface IngestRow {
+import { StatusBadge } from "../../molecules/status-badge/StatusBadge";
+
+export interface IngestRow {
 	_id: string;
 	source: "url" | "photo";
 	displayName: string;
@@ -6,15 +8,8 @@ interface IngestRow {
 	timeLabel: string;
 }
 
-export interface IngestTableProps {
-	rows: IngestRow[];
-	hasData: boolean;
-	pollingActive: boolean;
-	loading: boolean;
-}
-
-export function IngestTable({ rows, hasData }: IngestTableProps) {
-	if (!hasData && rows.length === 0) return <EmptyState />;
+export function IngestTable({ rows }: { rows: IngestRow[] }) {
+	if (rows.length === 0) return <EmptyState />;
 
 	return (
 		<div className="card overflow-hidden">
@@ -23,7 +18,7 @@ export function IngestTable({ rows, hasData }: IngestTableProps) {
 					<tr className="border-b border-[var(--border)] text-left text-sm uppercase tracking-wider text-[var(--text-secondary)]">
 						<th className="px-5 py-3.5 font-medium">URL / Titel</th>
 						<th className="w-48 px-5 py-3.5 font-medium">Status</th>
-						<th className="px-6 py-3.5 text-right text-sm uppercase tracking-wider text-[var(--text-secondary)]">Eingereicht</th>
+						<th className="px-6 py-3.5 text-right">Eingereicht</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -32,7 +27,6 @@ export function IngestTable({ rows, hasData }: IngestTableProps) {
 					))}
 				</tbody>
 			</table>
-			{rows.length === 0 && <EmptyState />}
 		</div>
 	);
 }
@@ -47,22 +41,6 @@ function IngestRowCard({ source, displayName, status, timeLabel }: IngestRow) {
 			<td className="px-5 py-3.5"><StatusBadge status={status} /></td>
 			<td className="px-6 py-3.5 text-right tabular-nums text-[var(--text-secondary)]">{timeLabel}</td>
 		</tr>
-	);
-}
-
-function StatusBadge({ status }: { status: "PENDING" | "PROCESSING" | "FAILED" }) {
-	const map = {
-		PENDING: "bg-[var(--accent-soft)] text-[var(--accent-deep)]",
-		PROCESSING: "bg-[var(--olive-soft)] text-[var(--olive-deep)]",
-		FAILED: "bg-[#f0d9d2] text-[#8c3a2b]",
-	} as const;
-	return (
-		<span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium ${map[status]}`}>
-			{(status === "PENDING" || status === "PROCESSING") && (
-				<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
-			)}
-			{status}
-		</span>
 	);
 }
 
