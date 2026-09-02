@@ -4,8 +4,9 @@ import { initI18n } from "../i18n/config";
 initI18n();
 
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
-import Footer from "../components/Footer";
-import Header from "../components/Header";
+import { useTranslation } from "react-i18next";
+import { Header } from "../components/organisms/header/Header";
+import { Footer } from "../components/organisms/footer/Footer";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -21,28 +22,24 @@ export const Route = createRootRoute({
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+	const { t } = useTranslation();
 	return (
 		<html lang="de" suppressHydrationWarning>
 			<head>
-				{/* Fonts: single source of truth. Preconnect to both origins so the
-            woff2 files (served from gstatic) resolve without an extra RTT.
-            display=swap keeps text visible while fonts load. */}
 				<link rel="preconnect" href="https://fonts.googleapis.com" />
-				<link
-					rel="preconnect"
-					href="https://fonts.gstatic.com"
-					crossOrigin="anonymous"
-				/>
-				<link
-					href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap"
-					rel="stylesheet"
-				/>
+				<link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+				<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 				<HeadContent />
 			</head>
 			<body className="antialiased [overflow-wrap:anywhere]">
-				<Header />
+				<Header links={[
+					{ to: "/", label: t("nav_recipes") },
+					{ to: "/ingest", label: t("nav_ingest") },
+					{ to: "/upload", label: t("nav_photo_upload") },
+					{ to: "/submit", label: t("nav_submit") },
+				]} />
 				{children}
-				<Footer />
+				<Footer year={new Date().getFullYear()} copyrightText={`${t("footer_terms")} · ${t("footer_help")}`} />
 				<Scripts />
 			</body>
 		</html>
