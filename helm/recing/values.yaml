@@ -59,9 +59,26 @@ secrets:
   # Set explicitly when postgres.enabled is false.
   postgresUrl: ""
 
-# ── Ingress ─────────────────────────────────────────────────────
+# ── Traefik (k3s embedded) ──────────────────────────────────────
+# Adds custom entry-points to k3s's built-in Traefik via a
+# pre-install/pre-upgrade hook that patches the traefik-opts ConfigMap.
+traefik:
+  enabled: false                                # set true to add extra entry-points
+  extraEntryPoints:
+    - name: web-alt                             # internal name (referenced in ingress annotations)
+      address: ":5399"                          # port Traefik listens on externally
+#   You can add more, e.g. an HTTPS entry-point:
+#     - name: websecure-custom
+#       address: ":8443"
+#
+# After enabling this, update ingress annotations to reference the new
+# entry-point(s), e.g.:
+#   traefik.ingress.kubernetes.io/router.entrypoints: web,web-alt
+
 ingress:
   enabled: true
-  host: recing.home.arpa
+  host: recing.home.arpa                        # primary FQDN (DNS must resolve)
+  additionalHosts:
+    - bitfarm                                     # k8s node hostname (add /etc/hosts or DNS if needed)
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web

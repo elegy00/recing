@@ -1,3 +1,8 @@
+# Reference ingress – see helm/recing/ for the source of truth.
+# Accessible via:
+#   • recing.lan               (DNS must resolve)
+#   • <node-hostname>          e.g. bitfarm
+#   • <node-ip>:<port>         e.g. 192.168.178.97:80
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -9,6 +14,16 @@ spec:
   rules:
   - host: recing.lan
     http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: recing-web
+            port:
+              number: 80
+  # Catch-all for IP / bare hostname access
+  - http:
       paths:
       - path: /
         pathType: Prefix
