@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Spinner } from "../../atoms/spinner/Spinner";
 
 interface Props {
 	url: string;
@@ -41,7 +42,7 @@ export function SubmitForm({
 				{status === "idle" && idleMessage}
 				{status === "submitting" && (
 					<>
-						<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--accent)] align-middle" />
+						<Spinner className="mr-2" />
 						{submittingMessage}
 					</>
 				)}

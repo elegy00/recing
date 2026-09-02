@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Job } from "../../../types";
+import { Spinner } from "../../atoms/spinner/Spinner";
 import { Figs } from "../../Motifs";
 import { RecipeCard } from "../../molecules/recipe-card/RecipeCard";
 
@@ -27,7 +28,7 @@ export function RecipeList({ loading, error, jobs }: RecipeListProps) {
 function LoadingState() {
 	return (
 		<p className="text-lg text-[var(--text-secondary)]">
-			<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--accent)] align-middle" />
+			<Spinner className="mr-2" />
 			Laden...
 		</p>
 	);

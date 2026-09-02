@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listPhotoJobs, type PhotoJob } from "../api/photo-jobs";
 import { listRecipes } from "../api/recipes";
 import type { Job } from "../types";
+import { Spinner } from "../components/atoms/spinner/Spinner";
 import { IngestTable, type IngestRow } from "../components/organisms/ingest-table/IngestTable";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 
@@ -82,7 +83,7 @@ export default function IngestPage() {
 	if (loading && entries.length === 0) {
 		return (
 			<div className="mx-auto max-w-4xl px-6 py-12 text-center text-[var(--text-secondary)]">
-				<span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--accent)] align-middle" />Laden...
+				<Spinner className="mr-2" />Laden...
 			</div>
 		);
 	}
