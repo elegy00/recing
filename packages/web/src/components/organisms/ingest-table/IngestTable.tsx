@@ -5,6 +5,8 @@ export interface IngestRow {
 	source: "url" | "photo";
 	displayName: string;
 	status: "PENDING" | "PROCESSING" | "FAILED";
+	/** ISO timestamp; used for ordering. */
+	createdAt: string;
 	timeLabel: string;
 }
 

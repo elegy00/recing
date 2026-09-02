@@ -6,6 +6,7 @@ import type { Job } from "../types";
 import { Spinner } from "../components/atoms/spinner/Spinner";
 import { IngestTable, type IngestRow } from "../components/organisms/ingest-table/IngestTable";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
+import { timeAgo } from "../utils/timeAgo";
 
 function statusOf(job: { status: string; error?: string | null }): IngestRow["status"] {
 	if (job.status === "FAILED" || job.error) return "FAILED";
@@ -20,6 +21,7 @@ function toUrlEntry(job: Job): IngestRow {
 		source: "url",
 		displayName: url.length > 60 ? `${url.slice(0, 60)}…` : url,
 		status: statusOf(job),
+		createdAt: job.createdAt,
 		timeLabel: timeAgo(job.createdAt),
 	};
 }
@@ -30,16 +32,9 @@ function toPhotoEntry(job: PhotoJob): IngestRow {
 		source: "photo",
 		displayName: `${job.totalPhotos} Foto${job.totalPhotos > 1 ? "s" : ""}`,
 		status: statusOf(job),
+		createdAt: job.createdAt,
 		timeLabel: timeAgo(job.createdAt),
 	};
-}
-
-function timeAgo(dateStr: string): string {
-	const diff = Date.now() - new Date(dateStr).getTime();
-	const mins = Math.floor(diff / 60_000);
-	if (mins < 1) return "Jetzt";
-	if (mins < 60) return `${mins}m`;
-	return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 
 export default function IngestPage() {
@@ -64,7 +59,7 @@ export default function IngestPage() {
 
 			setEntries(
 				[...urlEntries, ...photoEntries].sort(
-					(a, b) => new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime(),
+					(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
 				),
 			);
 		} catch (err) {
