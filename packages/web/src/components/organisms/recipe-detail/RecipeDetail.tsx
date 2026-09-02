@@ -1,3 +1,4 @@
+import type { RecipeIngredient, RecipeStep } from "../../../types";
 import { Chip } from "../../atoms/chip/Chip";
 import { SprigDivider } from "../../Motifs";
 import { PrimaryButton } from "../../atoms/button/PrimaryButton";
@@ -10,8 +11,8 @@ interface Props {
 	cookTime?: string;
 	totalTime?: string;
 	servings?: number | string;
-	ingredients: Array<{ quantity?: string; unit?: string; name: string; note?: string }>;
-	instructions: Array<{ stepNumber: number; text: string; timer?: string }>;
+	ingredients: RecipeIngredient[];
+	instructions: RecipeStep[];
 	onStartCooking: () => void;
 	onConfirmDelete: () => Promise<void>;
 	onConfirmReset: () => Promise<void>;
@@ -92,7 +93,7 @@ export function RecipeDetail({
 	);
 }
 
-function IngredientItem({ quantity, unit, name, note }: { quantity?: string; unit?: string; name: string; note?: string }) {
+function IngredientItem({ quantity, unit, name, note }: RecipeIngredient) {
 	return (
 		<li className="text-lg leading-relaxed">
 			{quantity && <strong>{quantity} </strong>}

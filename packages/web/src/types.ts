@@ -29,6 +29,21 @@ export interface RecipeResult {
   unusableReason?: string | null;
 }
 
+/** Display-ready ingredient (nulls resolved to undefined). */
+export interface RecipeIngredient {
+	quantity?: string;
+	unit?: string;
+	name: string;
+	note?: string;
+}
+
+/** Display-ready instruction step (nulls resolved to undefined). */
+export interface RecipeStep {
+	stepNumber: number;
+	text: string;
+	timer?: string;
+}
+
 export interface Job {
   _id: string;
   url: string;

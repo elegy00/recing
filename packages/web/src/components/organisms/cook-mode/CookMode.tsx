@@ -1,20 +1,11 @@
-interface Ingredient {
-	quantity?: string;
-	unit?: string;
-	name: string;
-}
-
-interface Step {
-	text: string;
-	timer?: string;
-}
+import type { RecipeIngredient, RecipeStep } from "../../../types";
 
 export interface CookModeProps {
-	step: Step | undefined;
+	step: RecipeStep | undefined;
 	totalSteps: number;
 	currentStepIndex: number;
 	progressPct: number;
-	ingredients: Ingredient[];
+	ingredients: RecipeIngredient[];
 	checkedIngredients: Set<number>;
 	onExitCooking: () => void;
 	onPrev: () => void;

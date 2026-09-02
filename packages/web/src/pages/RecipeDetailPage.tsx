@@ -1,12 +1,37 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { deleteRecipe, getRecipe, retryRecipe } from "../api/recipes";
-import type { Job } from "../types";
+import type {
+	Job,
+	RecipeIngredient,
+	RecipeResult,
+	RecipeStep,
+} from "../types";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { RecipeDetail } from "../components/organisms/recipe-detail/RecipeDetail";
 import { CookMode } from "../components/organisms/cook-mode/CookMode";
 
 type ViewMode = "detail" | "cook";
+
+/** Convert the API recipe result into display-ready ingredients and steps. */
+function normalizeRecipe(result: RecipeResult): {
+	ingredients: RecipeIngredient[];
+	instructions: RecipeStep[];
+} {
+	return {
+		ingredients: result.ingredients.map((i) => ({
+			quantity: i.quantity ?? undefined,
+			unit: i.unit ?? undefined,
+			name: i.name,
+			note: i.note ?? undefined,
+		})),
+		instructions: result.instructions.map((s) => ({
+			stepNumber: s.stepNumber,
+			text: s.text,
+			timer: s.timer ?? undefined,
+		})),
+	};
+}
 
 export default function RecipeDetailPage() {
 	const { id } = useParams({ strict: false }) as { id: string };
@@ -32,26 +57,30 @@ export default function RecipeDetailPage() {
 		})();
 	}, [id]);
 
-	const ext = job?.result ?? null;
-
 	function startCooking() { setCurrentStep(0); setCheckedIngredients(new Set()); setMode("cook"); }
 	function exitCooking() { setMode("detail"); setCurrentStep(0); setCheckedIngredients(new Set()); }
-	function toggleIngredient(idx: number) { setCheckedIngredients((prev) => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; }); }
+	function toggleIngredient(idx: number) {
+		setCheckedIngredients((prev) => {
+			const next = new Set(prev);
+			if (next.has(idx)) next.delete(idx);
+			else next.add(idx);
+			return next;
+		});
+	}
 
 	async function onConfirmDelete() {
 		try { await deleteRecipe({ data: { id } }); navigate({ to: "/", replace: true }); } catch { setConfirmAction(null); }
 	}
 	async function onConfirmReset() {
-		try { await retryRecipe({ data: { id } }); setJob((p) => p ? { ...p, status: "PENDING", result: null, error: null } : null); } catch { setConfirmAction(null); }
+		try { await retryRecipe({ data: { id } }); navigate({ to: "/ingest" }); } catch { setConfirmAction(null); }
 	}
 
 	if (loading) return <div className="mx-auto max-w-4xl px-6 py-12 text-lg text-[var(--text-secondary)]">Laden...</div>;
-	if (error || !job) return (
+	if (error || !job?.result) return (
 		<div className="mx-auto max-w-4xl px-6 py-12"><PageHeader title="Rezept nicht gefunden" subtitle={error ?? undefined} /><button onClick={() => navigate({ to: "/" })} className="btn-primary">Zurück</button></div>
 	);
 
-	const instructions = (ext?.instructions ?? []).map((s) => ({ ...s, timer: s.timer ?? undefined }));
-	const ingredients = (ext?.ingredients ?? []).map((i) => ({ ...i, quantity: i.quantity ?? undefined, unit: i.unit ?? undefined, note: i.note ?? undefined }));
+	const { ingredients, instructions } = normalizeRecipe(job.result);
 
 	if (mode === "cook") {
 		const step = instructions[currentStep];
@@ -71,8 +100,8 @@ export default function RecipeDetailPage() {
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
 			<RecipeDetail
-				name={ext?.recipeName ?? ""} description={ext?.description ?? undefined} prepTime={ext?.prepTime ?? undefined}
-				cookTime={ext?.cookTime ?? undefined} totalTime={ext?.totalTime ?? undefined} servings={ext?.servings ?? undefined}
+				name={job.result.recipeName ?? ""} description={job.result.description ?? undefined} prepTime={job.result.prepTime ?? undefined}
+				cookTime={job.result.cookTime ?? undefined} totalTime={job.result.totalTime ?? undefined} servings={job.result.servings ?? undefined}
 				ingredients={ingredients} instructions={instructions} onStartCooking={startCooking}
 				onConfirmDelete={onConfirmDelete} onConfirmReset={onConfirmReset} onCancelConfirm={() => setConfirmAction(null)}
 				onBack={() => navigate({ to: "/" })} showActions={job.status === "COMPLETED"} confirmAction={confirmAction}
