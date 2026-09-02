@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { SubmitForm } from "../components/organisms/submit-form/SubmitForm";
-import { submitRecipe } from "../api/server-functions";
+import { submitRecipe } from "../api/recipes";
 
 type Status = "idle" | "submitting" | "submitted" | "error";
 

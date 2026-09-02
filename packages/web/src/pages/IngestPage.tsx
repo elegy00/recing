@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { IngestTable } from "../components/organisms/ingest-table/IngestTable";
-import { listRecipes, listPhotoJobs } from "../api/server-functions";
+import { listPhotoJobs } from "../api/photo-jobs";
+import { listRecipes } from "../api/recipes";
 
 interface IngestEntry {
 	_id: string;

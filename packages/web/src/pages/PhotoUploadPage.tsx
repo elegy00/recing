@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { PhotoUpload } from "../components/organisms/photo-upload/PhotoUpload";
-import { submitPhotoJob } from "../api/server-functions";
+import { submitPhotoJob } from "../api/photo-jobs";
 
 type Status = "idle" | "submitting" | "submitted" | "error";
 

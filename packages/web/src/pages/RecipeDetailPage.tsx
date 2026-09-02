@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { getRecipe, deleteRecipe, retryRecipe } from "../api/server-functions";
+import { deleteRecipe, getRecipe, retryRecipe } from "../api/recipes";
 import type { Job } from "../types";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { RecipeDetail } from "../components/organisms/recipe-detail/RecipeDetail";

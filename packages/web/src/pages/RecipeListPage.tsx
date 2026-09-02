@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Figs } from "../components/Motifs";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { RecipeList } from "../components/organisms/recipe-list/RecipeList";
-import { listRecipes } from "../api/server-functions";
+import { listRecipes } from "../api/recipes";
 import type { Job } from "../types";
 
 export default function RecipeListPage() {
