@@ -83,6 +83,7 @@ export default {
 		"Füge 1 oder mehr Fotos von Rezepten ein. Unser KI-Modell extrahiert automatisch alle Zutaten, Anleitungen und Details.",
 	photo_count_one: "1 Foto ausgewählt",
 	photo_count_other: "{count} Fotos ausgewählt",
+	photo_remove: "Foto entfernen",
 	photo_submit: "Einreichen →",
 	photo_submitted: "✓ Wird verarbeitet! Weiterleitung …",
 	photo_submitting: "Wird eingereicht …",

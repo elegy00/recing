@@ -89,8 +89,7 @@ export default function PhotoUploadPage() {
 			<PageHeader title={t("photo_upload_title")} subtitle={t("photo_upload_description")} />
 			<PhotoUpload
 				photos={photoItems} onAddClick={() => fileInputRef.current?.click()}
-				onRemoveClick={removePhoto} countLabel={`${photos.length} Foto${photos.length !== 1 ? "s" : ""}`}
-				submitLabel={status === "submitting" ? t("photo_submitting") : t("photo_submit")}
+				onRemoveClick={removePhoto}
 				disabledSubmit={status === "submitting"} onSubmit={handleSubmit} status={status} errorMsg={errorMsg}
 			/>
 			<input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
