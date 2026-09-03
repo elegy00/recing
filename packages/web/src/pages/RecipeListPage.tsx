@@ -33,13 +33,7 @@ export default function RecipeListPage() {
 		<div className="mx-auto max-w-4xl px-6 py-12">
 			<PageHeader title={t("recipes_title")} subtitle={t("recipes_description")} decorativeIcon={<Figs className="mb-1 hidden h-20 w-32 shrink-0 sm:block" />} />
 
-			{loading && jobs.length > 0 ? (
-				<p className="text-lg text-[var(--text-secondary)]">Laden...</p>
-			) : error ? (
-				<p className="text-lg text-[var(--accent-deep)]">{error}</p>
-			) : (
-				<RecipeList loading={loading} error={error} jobs={jobs} />
-			)}
+			<RecipeList loading={loading} error={error} jobs={jobs} />
 		</div>
 	);
 }

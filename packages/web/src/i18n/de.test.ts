@@ -23,6 +23,9 @@ describe("i18n German translations", () => {
 		expect(i.t("confirm_delete_message", { name: "Kuchen" })).toContain(
 			'"Kuchen"',
 		);
+		expect(i.t("load_error", { error: "Netzwerkfehler" })).toBe(
+			"Fehler beim Laden: Netzwerkfehler",
+		);
 	});
 
 	it("resolves German plurals via key suffixes", () => {

@@ -21,11 +21,14 @@ export default {
 
 	// ── Generic ───────────────────────────────────────────────
 	error_prefix: "Fehler:",
+	loading: "Wird geladen …",
+	load_error: "Fehler beim Laden: {error}",
 
 	// ── RecipeListPage (Landing) ──────────────────────────────
 	recipes_title: "Rezepte",
 	recipes_description: "Alle extrahierten Rezepte aus eingereichten URLs.",
 	recipes_empty: "Keine Rezepte gefunden. Reiche eine URL ein, um zu beginnen.",
+	recipes_empty_cta: "Rezept einreichen",
 
 	// ── RecipeDetailPage ──────────────────────────────────────
 	detail_not_found: "Rezept nicht gefunden",
