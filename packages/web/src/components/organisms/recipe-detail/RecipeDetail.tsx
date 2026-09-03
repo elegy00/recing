@@ -1,8 +1,9 @@
+import { useTranslation } from "react-i18next";
 import type { RecipeIngredient, RecipeStep } from "../../../types";
+import { OutlineButton } from "../../atoms/button/OutlineButton";
+import { PrimaryButton } from "../../atoms/button/PrimaryButton";
 import { Chip } from "../../atoms/chip/Chip";
 import { SprigDivider } from "../../Motifs";
-import { PrimaryButton } from "../../atoms/button/PrimaryButton";
-import { OutlineButton } from "../../atoms/button/OutlineButton";
 
 interface Props {
 	name: string;
@@ -27,6 +28,8 @@ export function RecipeDetail({
 	ingredients, instructions, onStartCooking, onConfirmDelete, onConfirmReset,
 	onCancelConfirm, onBack, showActions, confirmAction,
 }: Props) {
+	const { t } = useTranslation();
+
 	return (
 		<div>
 			{/* Header */}
@@ -36,21 +39,21 @@ export function RecipeDetail({
 					<div className="mt-3 h-1 w-16 rounded-full bg-[var(--accent)]" />
 					{description && <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)]">{description}</p>}
 				</div>
-				<PrimaryButton onClick={onStartCooking}>Jetzt kochen</PrimaryButton>
+				<PrimaryButton onClick={onStartCooking}>{t("detail_start_cooking")}</PrimaryButton>
 			</div>
 
 			{/* Meta chips */}
 			{(prepTime || cookTime || totalTime || servings) && (
 				<div className="mb-10 flex flex-wrap gap-2.5">
-					{prepTime && <Chip>🕐 {prepTime}</Chip>}
-					{cookTime && <Chip>🍳 {cookTime}</Chip>}
-					{totalTime && !prepTime && !cookTime && <Chip>⏱ {totalTime}</Chip>}
-					{servings && <Chip>🍽 {servings}</Chip>}
+					{prepTime && <Chip>{t("detail_prep")}: {prepTime}</Chip>}
+					{cookTime && <Chip>{t("detail_cook")}: {cookTime}</Chip>}
+					{totalTime && !prepTime && !cookTime && <Chip>{t("detail_total")}: {totalTime}</Chip>}
+					{servings && <Chip>{t("detail_servings")}: {servings}</Chip>}
 				</div>
 			)}
 
 			{/* Ingredients */}
-			<h2 className="mb-5 font-serif text-3xl font-semibold">Zutaten</h2>
+			<h2 className="mb-5 font-serif text-3xl font-semibold">{t("detail_ingredients")}</h2>
 			<ul className="mb-10 grid list-none gap-x-10 gap-y-2.5 sm:grid-cols-2">
 				{ingredients.map((ing, idx) => <IngredientItem key={idx} {...ing} />)}
 			</ul>
@@ -58,7 +61,7 @@ export function RecipeDetail({
 			<SprigDivider className="mb-10" />
 
 			{/* Instructions */}
-			<h2 className="mb-5 font-serif text-3xl font-semibold">Anleitung</h2>
+			<h2 className="mb-5 font-serif text-3xl font-semibold">{t("detail_instructions")}</h2>
 			<ol className="list-decimal space-y-4 pl-6 marker:font-serif marker:text-xl marker:font-semibold marker:text-[var(--accent)]">
 				{instructions.map((step) => (
 					<li key={step.stepNumber} className="text-lg leading-relaxed">
@@ -76,18 +79,18 @@ export function RecipeDetail({
 			{/* Action buttons */}
 			{showActions && (
 				<div className="mt-6 flex flex-wrap gap-3">
-					<OutlineButton onClick={onConfirmReset}>Neu verarbeiten</OutlineButton>
+					<OutlineButton onClick={onConfirmReset}>{t("detail_reprocess")}</OutlineButton>
 					<button onClick={onConfirmDelete} className="inline-flex items-center justify-center gap-2 rounded-full border border-[#c98a7d] bg-transparent px-5 py-3 text-base font-medium text-[#9c3f2e] transition-colors duration-150 hover:bg-[#f6e3dc]">
-						Löschen
+						{t("detail_delete")}
 					</button>
 				</div>
 			)}
 
-			<OutlineButton onClick={onBack} className="mt-4">Zurück zur Übersicht</OutlineButton>
+			<OutlineButton onClick={onBack} className="mt-4">{t("detail_back_to_recipes")}</OutlineButton>
 
 			{/* Confirmation modal */}
 			{confirmAction && (
-				<ConfirmModal action={confirmAction} onConfirm={() => confirmAction === "delete" ? onConfirmDelete() : onConfirmReset()} onCancel={onCancelConfirm} />
+				<ConfirmModal name={name} action={confirmAction} onConfirm={() => confirmAction === "delete" ? onConfirmDelete() : onConfirmReset()} onCancel={onCancelConfirm} />
 			)}
 		</div>
 	);
@@ -104,18 +107,20 @@ function IngredientItem({ quantity, unit, name, note }: RecipeIngredient) {
 	);
 }
 
-function ConfirmModal({ action, onConfirm, onCancel }: { action: "delete" | "reset"; onConfirm: () => void; onCancel: () => void }) {
+function ConfirmModal({ name, action, onConfirm, onCancel }: { name: string; action: "delete" | "reset"; onConfirm: () => void; onCancel: () => void }) {
+	const { t } = useTranslation();
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
 			<div className="card w-full max-w-md p-7 shadow-xl">
-				<h3 className="mb-2 font-serif text-2xl font-semibold">{action === "delete" ? "Löschen bestätigen" : "Neuverarbeitung bestätigen"}</h3>
+				<h3 className="mb-2 font-serif text-2xl font-semibold">{action === "delete" ? t("confirm_delete_title") : t("confirm_reprocess_title")}</h3>
 				<p className="mb-6 leading-relaxed text-[var(--text-secondary)]">
-					{action === "delete" ? "Möchtest du dieses Rezept wirklich löschen?" : "Möchtest du die Extraktion neu starten?"}
+					{action === "delete" ? t("confirm_delete_message", { name }) : t("confirm_reprocess_message", { name })}
 				</p>
 				<div className="flex justify-end gap-3">
-					<OutlineButton onClick={onCancel}>Abbrechen</OutlineButton>
+					<OutlineButton onClick={onCancel}>{t("confirm_cancel")}</OutlineButton>
 					<PrimaryButton onClick={() => { onConfirm(); onCancel(); }}>
-						{action === "delete" ? "Löschen" : "Neu verarbeiten"}
+						{action === "delete" ? t("confirm_delete_btn") : t("confirm_reprocess_btn")}
 					</PrimaryButton>
 				</div>
 			</div>
