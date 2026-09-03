@@ -18,7 +18,9 @@ export default {
 	submit_status_idle: "Status: Bereit — füge oben eine URL ein, um zu beginnen",
 	submit_status_submitting: "Wird eingereicht …",
 	submit_status_submitted: "✓ Eingereicht! Weiterleitung …",
-	submit_status_error_prefix: "Fehler:",
+
+	// ── Generic ───────────────────────────────────────────────
+	error_prefix: "Fehler:",
 
 	// ── RecipeListPage (Landing) ──────────────────────────────
 	recipes_title: "Rezepte",

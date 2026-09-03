@@ -35,9 +35,7 @@ export default function SubmitPage() {
 			<PageHeader title={t("submit_title")} subtitle={t("submit_description")} />
 			<SubmitForm
 				url={url} onUrlChange={setUrl} status={status} errorMsg={errorMsg}
-				onSubmit={handleSubmit} submitLabel={t("submit_button")} placeholder={t("submit_placeholder")}
-				idleMessage={t("submit_status_idle")} submittingMessage={t("submit_status_submitting")}
-				submittedMessage={t("submit_status_submitted")} errorPrefix={t("submit_status_error_prefix")}
+				onSubmit={handleSubmit}
 			/>
 		</div>
 	);
