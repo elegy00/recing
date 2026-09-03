@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { StatusBadge } from "../../molecules/status-badge/StatusBadge";
 
 export interface IngestRow {
@@ -11,6 +12,8 @@ export interface IngestRow {
 }
 
 export function IngestTable({ rows }: { rows: IngestRow[] }) {
+	const { t } = useTranslation();
+
 	if (rows.length === 0) return <EmptyState />;
 
 	return (
@@ -18,9 +21,9 @@ export function IngestTable({ rows }: { rows: IngestRow[] }) {
 			<table className="w-full text-base">
 				<thead className="bg-[var(--olive-soft)]/60">
 					<tr className="border-b border-[var(--border)] text-left text-sm uppercase tracking-wider text-[var(--text-secondary)]">
-						<th className="px-5 py-3.5 font-medium">URL / Titel</th>
-						<th className="w-48 px-5 py-3.5 font-medium">Status</th>
-						<th className="px-6 py-3.5 text-right">Eingereicht</th>
+						<th className="px-5 py-3.5 font-medium">{t("ingest_url")}</th>
+						<th className="w-48 px-5 py-3.5 font-medium">{t("ingest_status")}</th>
+						<th className="px-6 py-3.5 text-right">{t("ingest_submitted")}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -47,5 +50,6 @@ function IngestRowCard({ source, displayName, status, timeLabel }: IngestRow) {
 }
 
 function EmptyState() {
-	return <div className="py-12 text-center text-[var(--text-secondary)]">Keine Einträge vorhanden.</div>;
+	const { t } = useTranslation();
+	return <div className="py-12 text-center text-[var(--text-secondary)]">{t("ingest_empty")}</div>;
 }

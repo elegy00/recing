@@ -78,16 +78,16 @@ export default function IngestPage() {
 	if (loading && entries.length === 0) {
 		return (
 			<div className="mx-auto max-w-4xl px-6 py-12 text-center text-[var(--text-secondary)]">
-				<Spinner className="mr-2" />Laden...
+				<Spinner className="mr-2" />{t("loading")}
 			</div>
 		);
 	}
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<PageHeader title={t("ingest_title")} subtitle={`${entries.length} aktive Einträge`} />
+			<PageHeader title={t("ingest_title")} subtitle={t("ingest_job_count", { count: entries.length })} />
 			<p className="mb-4 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-				<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />Automatische Aktualisierung aktiv
+				<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />{t("ingest_polling")}
 			</p>
 			<IngestTable rows={entries} />
 		</div>
