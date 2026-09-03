@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { deleteRecipe, getRecipe, retryRecipe } from "../api/recipes";
 import type {
 	Job,
@@ -34,6 +35,7 @@ function normalizeRecipe(result: RecipeResult): {
 }
 
 export default function RecipeDetailPage() {
+	const { t } = useTranslation();
 	const { id } = useParams({ strict: false }) as { id: string };
 	const navigate = useNavigate();
 	const [job, setJob] = useState<Job | null>(null);
@@ -75,9 +77,9 @@ export default function RecipeDetailPage() {
 		try { await retryRecipe({ data: { id } }); navigate({ to: "/ingest" }); } catch { setConfirmAction(null); }
 	}
 
-	if (loading) return <div className="mx-auto max-w-4xl px-6 py-12 text-lg text-[var(--text-secondary)]">Laden...</div>;
+	if (loading) return <div className="mx-auto max-w-4xl px-6 py-12 text-lg text-[var(--text-secondary)]">{t("loading")}</div>;
 	if (error || !job?.result) return (
-		<div className="mx-auto max-w-4xl px-6 py-12"><PageHeader title="Rezept nicht gefunden" subtitle={error ?? undefined} /><button onClick={() => navigate({ to: "/" })} className="btn-primary">Zurück</button></div>
+		<div className="mx-auto max-w-4xl px-6 py-12"><PageHeader title={t("detail_not_found")} subtitle={error ? t("load_error", { error }) : t("detail_not_found_message")} /><button onClick={() => navigate({ to: "/" })} className="btn-primary">{t("detail_back_to_recipes")}</button></div>
 	);
 
 	const { ingredients, instructions } = normalizeRecipe(job.result);
