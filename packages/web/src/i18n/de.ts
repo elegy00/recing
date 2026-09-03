@@ -23,15 +23,7 @@ export default {
 	// ── RecipeListPage (Landing) ──────────────────────────────
 	recipes_title: "Rezepte",
 	recipes_description: "Alle extrahierten Rezepte aus eingereichten URLs.",
-	filter_all: "Alle",
-	filter_completed: "Erledigt",
-	filter_pending: "Ausstehend",
-	filter_processing: "Verarbeitung …",
-	filter_failed: "Fehlgeschlagen",
-	recipes_loading: "Wird geladen …",
-	recipes_empty: "Keine Rezepte gefunden. Versuche einen anderen Filter.",
-	card_cook: "Kochen",
-	card_prep: "Vorbereitung",
+	recipes_empty: "Keine Rezepte gefunden. Reiche eine URL ein, um zu beginnen.",
 
 	// ── RecipeDetailPage ──────────────────────────────────────
 	detail_not_found: "Rezept nicht gefunden",
@@ -65,13 +57,8 @@ export default {
 	confirm_delete_btn: "Löschen",
 	confirm_reprocess_btn: "Erneut verarbeiten",
 
-	// ── Toast / generic ───────────────────────────────────────
-	delete_failed: "Löschen fehlgeschlagen:",
-	reset_failed: "Zurücksetzen fehlgeschlagen:",
-
-	// ── IngestPage ────────────────────────────────────────────
+		// ── IngestPage ────────────────────────────────────────────
 	ingest_title: "Verarbeitung",
-	ingest_loading: "Wird geladen …",
 	// i18next plurals use key suffixes (_one/_other), not ICU inline syntax
 	ingest_job_count_one: "Ein Rezept in Bearbeitung",
 	ingest_job_count_other: "{count} Rezepte in Bearbeitung",
@@ -94,10 +81,4 @@ export default {
 	photo_submit: "Einreichen →",
 	photo_submitted: "✓ Wird verarbeitet! Weiterleitung …",
 	photo_submitting: "Wird eingereicht …",
-
-	// ── Photo detail view ─────────────────────────────────────
-	photo_status_pending: "Ausstehend",
-	photo_status_expecting: "Wird extrahiert…",
-	photo_status_extracted: "Extrahiert",
-	photo_status_failed: "Fehlgeschlagen",
 } as const;
