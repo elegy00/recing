@@ -62,7 +62,7 @@ export default {
 	confirm_delete_btn: "Löschen",
 	confirm_reprocess_btn: "Erneut verarbeiten",
 
-		// ── IngestPage ────────────────────────────────────────────
+	// ── IngestPage ────────────────────────────────────────────
 	ingest_title: "Verarbeitung",
 	// i18next plurals use key suffixes (_one/_other), not ICU inline syntax
 	ingest_job_count_one: "Ein Rezept in Bearbeitung",

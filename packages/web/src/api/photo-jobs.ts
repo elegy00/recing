@@ -3,8 +3,9 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
-import { getPool, toIsoString } from "./db";
+import type { RecipeResult } from "../types";
 import { isUuid } from "../utils/uuid";
+import { getPool, toIsoString } from "./db";
 import { requireId } from "./validators";
 
 export interface PhotoJob {
@@ -13,7 +14,7 @@ export interface PhotoJob {
 	totalPhotos: number;
 	completedChunks: number;
 	error?: string | null;
-	result?: any;
+	result?: RecipeResult | null;
 	createdAt: string;
 }
 
@@ -23,7 +24,8 @@ export interface PhotoChunk {
 	orderNum: number;
 	status: string;
 	dataUri?: string | null;
-	extractedJson?: any;
+	/** Per-chunk extraction result (JSONB), same shape as the job's final result. */
+	extractedJson?: RecipeResult | null;
 	error?: string | null;
 }
 
@@ -35,7 +37,7 @@ function mapPhotoJobRow(row: Record<string, unknown>): PhotoJob {
 		total_photos: number;
 		completed_chunks: number;
 		error?: string | null;
-		result?: any;
+		result?: RecipeResult | null;
 		created_at: Date | string;
 	};
 	return {
@@ -58,7 +60,7 @@ function mapPhotoChunkRow(row: Record<string, unknown>): PhotoChunk {
 		photo_id?: string | null;
 		status: string;
 		data_uri?: string; // joined from photos table
-		extracted_json?: any;
+		extracted_json?: RecipeResult | null;
 		error?: string | null;
 	};
 	return {
@@ -74,8 +76,8 @@ function mapPhotoChunkRow(row: Record<string, unknown>): PhotoChunk {
 
 // ─── POST /api/photo-jobs — Submit photos for ingestion ──────────────────
 
-export const submitPhotoJob = createServerFn({ method: "POST" }).validator(
-	(data: { photos?: unknown }) => {
+export const submitPhotoJob = createServerFn({ method: "POST" })
+	.validator((data: { photos?: unknown }) => {
 		const photos = data?.photos;
 		if (!Array.isArray(photos) || photos.length === 0) {
 			throw new Error("At least one photo is required");
@@ -83,46 +85,44 @@ export const submitPhotoJob = createServerFn({ method: "POST" }).validator(
 		for (let i = 0; i < photos.length; i++) {
 			const uri = (photos[i] as { dataUri?: unknown })?.dataUri;
 			if (typeof uri !== "string" || !uri.startsWith("data:image/")) {
-				throw new Error(
-					`Photo ${i + 1} is not a valid base64-encoded image`,
-				);
+				throw new Error(`Photo ${i + 1} is not a valid base64-encoded image`);
 			}
 		}
 		return { photos: photos as Array<{ dataUri: string }> };
-	},
-).handler(async (ctx) => {
-	const photos = ctx.data.photos;
+	})
+	.handler(async (ctx) => {
+		const photos = ctx.data.photos;
 
-	const pool = getPool();
-	const jobId = crypto.randomUUID();
-	const now = new Date().toISOString();
+		const pool = getPool();
+		const jobId = crypto.randomUUID();
+		const now = new Date().toISOString();
 
-	// Insert job
-	await pool.query(
-		"INSERT INTO photo_jobs (id, status, total_photos, completed_chunks, created_at, updated_at) VALUES ($1, 'PENDING', $2, 0, $3, $3)",
-		[jobId, photos.length, now],
-	);
-
-	// Insert each photo into the photos table (separate from chunks), then create a chunk referencing it
-	for (let i = 0; i < photos.length; i++) {
-		const photoId = crypto.randomUUID();
-		const ctMatch = photos[i].dataUri.match(/^data:([^;]+);/);
-		const contentType = ctMatch ? ctMatch[1] : "image/jpeg";
-		const sizeBytes = new TextEncoder().encode(photos[i].dataUri).length;
-
+		// Insert job
 		await pool.query(
-			`INSERT INTO photos (id, job_id, order_num, content_type, data_uri, size_bytes) VALUES ($1, $2, $3, $4, $5, $6)`,
-			[photoId, jobId, i, contentType, photos[i].dataUri, sizeBytes],
+			"INSERT INTO photo_jobs (id, status, total_photos, completed_chunks, created_at, updated_at) VALUES ($1, 'PENDING', $2, 0, $3, $3)",
+			[jobId, photos.length, now],
 		);
 
-		await pool.query(
-			`INSERT INTO photo_chunks (job_id, order_num, photo_id, status, created_at, updated_at) VALUES ($1, $2, $3, 'PENDING', $4, $4)`,
-			[jobId, i, photoId, now],
-		);
-	}
+		// Insert each photo into the photos table (separate from chunks), then create a chunk referencing it
+		for (let i = 0; i < photos.length; i++) {
+			const photoId = crypto.randomUUID();
+			const ctMatch = photos[i].dataUri.match(/^data:([^;]+);/);
+			const contentType = ctMatch ? ctMatch[1] : "image/jpeg";
+			const sizeBytes = new TextEncoder().encode(photos[i].dataUri).length;
 
-	return { jobId };
-});
+			await pool.query(
+				`INSERT INTO photos (id, job_id, order_num, content_type, data_uri, size_bytes) VALUES ($1, $2, $3, $4, $5, $6)`,
+				[photoId, jobId, i, contentType, photos[i].dataUri, sizeBytes],
+			);
+
+			await pool.query(
+				`INSERT INTO photo_chunks (job_id, order_num, photo_id, status, created_at, updated_at) VALUES ($1, $2, $3, 'PENDING', $4, $4)`,
+				[jobId, i, photoId, now],
+			);
+		}
+
+		return { jobId };
+	});
 
 // ─── GET /api/photo-jobs — List photo jobs (non-completed by default) ────
 

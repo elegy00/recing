@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { submitRecipe } from "../api/recipes";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { SubmitForm } from "../components/organisms/submit-form/SubmitForm";
-import { submitRecipe } from "../api/recipes";
 
 type Status = "idle" | "submitting" | "submitted" | "error";
 
@@ -32,9 +32,15 @@ export default function SubmitPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<PageHeader title={t("submit_title")} subtitle={t("submit_description")} />
+			<PageHeader
+				title={t("submit_title")}
+				subtitle={t("submit_description")}
+			/>
 			<SubmitForm
-				url={url} onUrlChange={setUrl} status={status} errorMsg={errorMsg}
+				url={url}
+				onUrlChange={setUrl}
+				status={status}
+				errorMsg={errorMsg}
 				onSubmit={handleSubmit}
 			/>
 		</div>

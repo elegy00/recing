@@ -2,13 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listPhotoJobs, type PhotoJob } from "../api/photo-jobs";
 import { listRecipes } from "../api/recipes";
-import type { Job } from "../types";
 import { Spinner } from "../components/atoms/spinner/Spinner";
-import { IngestTable, type IngestRow } from "../components/organisms/ingest-table/IngestTable";
+import {
+	type IngestRow,
+	IngestTable,
+} from "../components/organisms/ingest-table/IngestTable";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
+import type { Job } from "../types";
 import { timeAgo } from "../utils/timeAgo";
 
-function statusOf(job: { status: string; error?: string | null }): IngestRow["status"] {
+function statusOf(job: {
+	status: string;
+	error?: string | null;
+}): IngestRow["status"] {
 	if (job.status === "FAILED" || job.error) return "FAILED";
 	if (job.status === "PROCESSING") return "PROCESSING";
 	return "PENDING";
@@ -59,7 +65,8 @@ export default function IngestPage() {
 
 			setEntries(
 				[...urlEntries, ...photoEntries].sort(
-					(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+					(a, b) =>
+						new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
 				),
 			);
 		} catch (err) {
@@ -78,16 +85,21 @@ export default function IngestPage() {
 	if (loading && entries.length === 0) {
 		return (
 			<div className="mx-auto max-w-4xl px-6 py-12 text-center text-[var(--text-secondary)]">
-				<Spinner className="mr-2" />{t("loading")}
+				<Spinner className="mr-2" />
+				{t("loading")}
 			</div>
 		);
 	}
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<PageHeader title={t("ingest_title")} subtitle={t("ingest_job_count", { count: entries.length })} />
+			<PageHeader
+				title={t("ingest_title")}
+				subtitle={t("ingest_job_count", { count: entries.length })}
+			/>
 			<p className="mb-4 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-				<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />{t("ingest_polling")}
+				<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
+				{t("ingest_polling")}
 			</p>
 			<IngestTable rows={entries} />
 		</div>

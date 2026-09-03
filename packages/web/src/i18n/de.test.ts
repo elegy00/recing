@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import i18next from "i18next";
+import { describe, expect, it } from "vitest";
 import de from "./de";
 
 // Mirrors the interpolation settings in config.ts. i18next v26 changed the

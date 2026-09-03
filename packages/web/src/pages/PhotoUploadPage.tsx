@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { submitPhotoJob } from "../api/photo-jobs";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
@@ -86,13 +86,27 @@ export default function PhotoUploadPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<PageHeader title={t("photo_upload_title")} subtitle={t("photo_upload_description")} />
-			<PhotoUpload
-				photos={photoItems} onAddClick={() => fileInputRef.current?.click()}
-				onRemoveClick={removePhoto}
-				disabledSubmit={status === "submitting"} onSubmit={handleSubmit} status={status} errorMsg={errorMsg}
+			<PageHeader
+				title={t("photo_upload_title")}
+				subtitle={t("photo_upload_description")}
 			/>
-			<input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+			<PhotoUpload
+				photos={photoItems}
+				onAddClick={() => fileInputRef.current?.click()}
+				onRemoveClick={removePhoto}
+				disabledSubmit={status === "submitting"}
+				onSubmit={handleSubmit}
+				status={status}
+				errorMsg={errorMsg}
+			/>
+			<input
+				ref={fileInputRef}
+				type="file"
+				multiple
+				accept="image/*"
+				className="hidden"
+				onChange={(e) => handleFiles(e.target.files)}
+			/>
 		</div>
 	);
 }

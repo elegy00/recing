@@ -22,7 +22,9 @@ export function IngestTable({ rows }: { rows: IngestRow[] }) {
 				<thead className="bg-[var(--olive-soft)]/60">
 					<tr className="border-b border-[var(--border)] text-left text-sm uppercase tracking-wider text-[var(--text-secondary)]">
 						<th className="px-5 py-3.5 font-medium">{t("ingest_url")}</th>
-						<th className="w-48 px-5 py-3.5 font-medium">{t("ingest_status")}</th>
+						<th className="w-48 px-5 py-3.5 font-medium">
+							{t("ingest_status")}
+						</th>
 						<th className="px-6 py-3.5 text-right">{t("ingest_submitted")}</th>
 					</tr>
 				</thead>
@@ -40,16 +42,26 @@ function IngestRowCard({ source, displayName, status, timeLabel }: IngestRow) {
 	return (
 		<tr className="border-b border-[var(--border)] transition-colors last:border-b-0 hover:bg-[var(--accent-soft)]/40">
 			<td className="max-w-xs truncate px-5 py-3.5 text-[var(--text-primary)]">
-				{source === "photo" && <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--fig)]" />}
+				{source === "photo" && (
+					<span className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--fig)]" />
+				)}
 				{displayName}
 			</td>
-			<td className="px-5 py-3.5"><StatusBadge status={status} /></td>
-			<td className="px-6 py-3.5 text-right tabular-nums text-[var(--text-secondary)]">{timeLabel}</td>
+			<td className="px-5 py-3.5">
+				<StatusBadge status={status} />
+			</td>
+			<td className="px-6 py-3.5 text-right tabular-nums text-[var(--text-secondary)]">
+				{timeLabel}
+			</td>
 		</tr>
 	);
 }
 
 function EmptyState() {
 	const { t } = useTranslation();
-	return <div className="py-12 text-center text-[var(--text-secondary)]">{t("ingest_empty")}</div>;
+	return (
+		<div className="py-12 text-center text-[var(--text-secondary)]">
+			{t("ingest_empty")}
+		</div>
+	);
 }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { listRecipes } from "../api/recipes";
 import { Figs } from "../components/Motifs";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { RecipeList } from "../components/organisms/recipe-list/RecipeList";
-import { listRecipes } from "../api/recipes";
 import type { Job } from "../types";
 
 export default function RecipeListPage() {
@@ -31,7 +31,13 @@ export default function RecipeListPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
-			<PageHeader title={t("recipes_title")} subtitle={t("recipes_description")} decorativeIcon={<Figs className="mb-1 hidden h-20 w-32 shrink-0 sm:block" />} />
+			<PageHeader
+				title={t("recipes_title")}
+				subtitle={t("recipes_description")}
+				decorativeIcon={
+					<Figs className="mb-1 hidden h-20 w-32 shrink-0 sm:block" />
+				}
+			/>
 
 			<RecipeList loading={loading} error={error} jobs={jobs} />
 		</div>

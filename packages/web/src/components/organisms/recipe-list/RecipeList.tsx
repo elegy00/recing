@@ -39,7 +39,9 @@ function LoadingState() {
 function ErrorState({ error }: { error: string }) {
 	const { t } = useTranslation();
 	return (
-		<p className="text-lg text-[var(--accent-deep)]">{t("load_error", { error })}</p>
+		<p className="text-lg text-[var(--accent-deep)]">
+			{t("load_error", { error })}
+		</p>
 	);
 }
 
@@ -51,7 +53,9 @@ function EmptyState() {
 			<p className="max-w-md text-lg leading-relaxed text-[var(--text-secondary)]">
 				{t("recipes_empty")}
 			</p>
-			<Link to="/submit" className="btn-primary mt-2">{t("recipes_empty_cta")}</Link>
+			<Link to="/submit" className="btn-primary mt-2">
+				{t("recipes_empty_cta")}
+			</Link>
 		</div>
 	);
 }

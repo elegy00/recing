@@ -10,7 +10,9 @@ export function StatusBadge({ status }: Props) {
 	} as const;
 
 	return (
-		<span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium ${map[status]}`}>
+		<span
+			className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium ${map[status]}`}
+		>
 			{(status === "PENDING" || status === "PROCESSING") && (
 				<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
 			)}

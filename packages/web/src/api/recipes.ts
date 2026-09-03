@@ -47,51 +47,53 @@ function isValidRecipe(job: Job): boolean {
 
 // ─── POST /api/recipes — Submit a URL to ingest ────────────────────────────
 
-export const submitRecipe = createServerFn({ method: "POST" }).validator(
-	(data: { url?: unknown }) => {
+export const submitRecipe = createServerFn({ method: "POST" })
+	.validator((data: { url?: unknown }) => {
 		if (typeof data?.url !== "string" || !data.url.trim()) {
 			throw new Error("URL is required");
 		}
 		return { url: data.url };
-	},
-).handler(async (ctx) => {
-	const id = crypto.randomUUID();
-	const now = new Date().toISOString();
+	})
+	.handler(async (ctx) => {
+		const id = crypto.randomUUID();
+		const now = new Date().toISOString();
 
-	await getPool().query(
-		"INSERT INTO jobs (id, url, status, created_at, updated_at) VALUES ($1, $2, 'PENDING', $3, $3)",
-		[id, ctx.data.url.trim(), now],
-	);
+		await getPool().query(
+			"INSERT INTO jobs (id, url, status, created_at, updated_at) VALUES ($1, $2, 'PENDING', $3, $3)",
+			[id, ctx.data.url.trim(), now],
+		);
 
-	return { jobId: id };
-});
+		return { jobId: id };
+	});
 
 // ─── GET /api/recipes — List recipes ──────────────────────────────────────
 
-export const listRecipes = createServerFn({ method: "GET" }).validator(
-	(data?: { status?: unknown }) => ({
+export const listRecipes = createServerFn({ method: "GET" })
+	.validator((data?: { status?: unknown }) => ({
 		status: typeof data?.status === "string" ? data.status : undefined,
-	}),
-).handler(async (ctx) => {
-	const pool = getPool();
-	const status = ctx.data.status;
+	}))
+	.handler(async (ctx) => {
+		const pool = getPool();
+		const status = ctx.data.status;
 
-	if (status === "all") {
-		// All jobs regardless of status (used by the ingest overview)
-		const res = await pool.query("SELECT * FROM jobs ORDER BY created_at DESC");
-		return { recipes: res.rows.map(mapRow) };
-	}
+		if (status === "all") {
+			// All jobs regardless of status (used by the ingest overview)
+			const res = await pool.query(
+				"SELECT * FROM jobs ORDER BY created_at DESC",
+			);
+			return { recipes: res.rows.map(mapRow) };
+		}
 
-	if (status) {
-		const res = await pool.query(
-			"SELECT * FROM jobs WHERE status = $1 ORDER BY created_at DESC",
-			[status],
-		);
-		return { recipes: res.rows.map(mapRow) };
-	}
+		if (status) {
+			const res = await pool.query(
+				"SELECT * FROM jobs WHERE status = $1 ORDER BY created_at DESC",
+				[status],
+			);
+			return { recipes: res.rows.map(mapRow) };
+		}
 
-	// Default: only valid completed recipes
-	const res = await pool.query(`
+		// Default: only valid completed recipes
+		const res = await pool.query(`
       SELECT * FROM jobs
       WHERE status = 'COMPLETED'
         AND result IS NOT NULL
@@ -102,8 +104,8 @@ export const listRecipes = createServerFn({ method: "GET" }).validator(
       ORDER BY created_at DESC
     `);
 
-	return { recipes: res.rows.map(mapRow) };
-});
+		return { recipes: res.rows.map(mapRow) };
+	});
 
 // ─── GET /api/recipes/:id — Fetch a single recipe ──────────────────────────
 

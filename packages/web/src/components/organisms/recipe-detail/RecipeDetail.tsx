@@ -24,9 +24,21 @@ interface Props {
 }
 
 export function RecipeDetail({
-	name, description, prepTime, cookTime, totalTime, servings,
-	ingredients, instructions, onStartCooking, onConfirmDelete, onConfirmReset,
-	onCancelConfirm, onBack, showActions, confirmAction,
+	name,
+	description,
+	prepTime,
+	cookTime,
+	totalTime,
+	servings,
+	ingredients,
+	instructions,
+	onStartCooking,
+	onConfirmDelete,
+	onConfirmReset,
+	onCancelConfirm,
+	onBack,
+	showActions,
+	confirmAction,
 }: Props) {
 	const { t } = useTranslation();
 
@@ -35,62 +47,114 @@ export function RecipeDetail({
 			{/* Header */}
 			<div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl">{name}</h1>
+					<h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
+						{name}
+					</h1>
 					<div className="mt-3 h-1 w-16 rounded-full bg-[var(--accent)]" />
-					{description && <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)]">{description}</p>}
+					{description && (
+						<p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)]">
+							{description}
+						</p>
+					)}
 				</div>
-				<PrimaryButton onClick={onStartCooking}>{t("detail_start_cooking")}</PrimaryButton>
+				<PrimaryButton onClick={onStartCooking}>
+					{t("detail_start_cooking")}
+				</PrimaryButton>
 			</div>
 
 			{/* Meta chips */}
 			{(prepTime || cookTime || totalTime || servings) && (
 				<div className="mb-10 flex flex-wrap gap-2.5">
-					{prepTime && <Chip>{t("detail_prep")}: {prepTime}</Chip>}
-					{cookTime && <Chip>{t("detail_cook")}: {cookTime}</Chip>}
-					{totalTime && !prepTime && !cookTime && <Chip>{t("detail_total")}: {totalTime}</Chip>}
-					{servings && <Chip>{t("detail_servings")}: {servings}</Chip>}
+					{prepTime && (
+						<Chip>
+							{t("detail_prep")}: {prepTime}
+						</Chip>
+					)}
+					{cookTime && (
+						<Chip>
+							{t("detail_cook")}: {cookTime}
+						</Chip>
+					)}
+					{totalTime && !prepTime && !cookTime && (
+						<Chip>
+							{t("detail_total")}: {totalTime}
+						</Chip>
+					)}
+					{servings && (
+						<Chip>
+							{t("detail_servings")}: {servings}
+						</Chip>
+					)}
 				</div>
 			)}
 
 			{/* Ingredients */}
-			<h2 className="mb-5 font-serif text-3xl font-semibold">{t("detail_ingredients")}</h2>
+			<h2 className="mb-5 font-serif text-3xl font-semibold">
+				{t("detail_ingredients")}
+			</h2>
 			<ul className="mb-10 grid list-none gap-x-10 gap-y-2.5 sm:grid-cols-2">
-				{ingredients.map((ing, idx) => <IngredientItem key={idx} {...ing} />)}
+				{ingredients.map((ing, idx) => {
+					// biome-ignore lint/suspicious/noArrayIndexKey: static list that never reorders
+					return <IngredientItem key={idx} {...ing} />;
+				})}
 			</ul>
 
 			<SprigDivider className="mb-10" />
 
 			{/* Instructions */}
-			<h2 className="mb-5 font-serif text-3xl font-semibold">{t("detail_instructions")}</h2>
+			<h2 className="mb-5 font-serif text-3xl font-semibold">
+				{t("detail_instructions")}
+			</h2>
 			<ol className="list-decimal space-y-4 pl-6 marker:font-serif marker:text-xl marker:font-semibold marker:text-[var(--accent)]">
 				{instructions.map((step) => (
 					<li key={step.stepNumber} className="text-lg leading-relaxed">
 						{step.text}
-						{step.timer && <span className="ml-2 inline-block rounded-full bg-[var(--olive-soft)] px-3 py-0.5 text-sm font-medium tabular-nums text-[var(--olive-deep)]">⏱ {step.timer}</span>}
+						{step.timer && (
+							<span className="ml-2 inline-block rounded-full bg-[var(--olive-soft)] px-3 py-0.5 text-sm font-medium tabular-nums text-[var(--olive-deep)]">
+								⏱ {step.timer}
+							</span>
+						)}
 					</li>
 				))}
 			</ol>
 
 			{/* Footer date */}
 			<div className="mt-10 border-t border-[var(--border)] pt-5">
-				<p className="text-sm text-[var(--text-secondary)]">{new Date().toLocaleDateString()}</p>
+				<p className="text-sm text-[var(--text-secondary)]">
+					{new Date().toLocaleDateString()}
+				</p>
 			</div>
 
 			{/* Action buttons */}
 			{showActions && (
 				<div className="mt-6 flex flex-wrap gap-3">
-					<OutlineButton onClick={onConfirmReset}>{t("detail_reprocess")}</OutlineButton>
-					<button onClick={onConfirmDelete} className="inline-flex items-center justify-center gap-2 rounded-full border border-[#c98a7d] bg-transparent px-5 py-3 text-base font-medium text-[#9c3f2e] transition-colors duration-150 hover:bg-[#f6e3dc]">
+					<OutlineButton onClick={onConfirmReset}>
+						{t("detail_reprocess")}
+					</OutlineButton>
+					<button
+						type="button"
+						onClick={onConfirmDelete}
+						className="inline-flex items-center justify-center gap-2 rounded-full border border-[#c98a7d] bg-transparent px-5 py-3 text-base font-medium text-[#9c3f2e] transition-colors duration-150 hover:bg-[#f6e3dc]"
+					>
 						{t("detail_delete")}
 					</button>
 				</div>
 			)}
 
-			<OutlineButton onClick={onBack} className="mt-4">{t("detail_back_to_recipes")}</OutlineButton>
+			<OutlineButton onClick={onBack} className="mt-4">
+				{t("detail_back_to_recipes")}
+			</OutlineButton>
 
 			{/* Confirmation modal */}
 			{confirmAction && (
-				<ConfirmModal name={name} action={confirmAction} onConfirm={() => confirmAction === "delete" ? onConfirmDelete() : onConfirmReset()} onCancel={onCancelConfirm} />
+				<ConfirmModal
+					name={name}
+					action={confirmAction}
+					onConfirm={() =>
+						confirmAction === "delete" ? onConfirmDelete() : onConfirmReset()
+					}
+					onCancel={onCancelConfirm}
+				/>
 			)}
 		</div>
 	);
@@ -107,20 +171,45 @@ function IngredientItem({ quantity, unit, name, note }: RecipeIngredient) {
 	);
 }
 
-function ConfirmModal({ name, action, onConfirm, onCancel }: { name: string; action: "delete" | "reset"; onConfirm: () => void; onCancel: () => void }) {
+function ConfirmModal({
+	name,
+	action,
+	onConfirm,
+	onCancel,
+}: {
+	name: string;
+	action: "delete" | "reset";
+	onConfirm: () => void;
+	onCancel: () => void;
+}) {
 	const { t } = useTranslation();
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
 			<div className="card w-full max-w-md p-7 shadow-xl">
-				<h3 className="mb-2 font-serif text-2xl font-semibold">{action === "delete" ? t("confirm_delete_title") : t("confirm_reprocess_title")}</h3>
+				<h3 className="mb-2 font-serif text-2xl font-semibold">
+					{action === "delete"
+						? t("confirm_delete_title")
+						: t("confirm_reprocess_title")}
+				</h3>
 				<p className="mb-6 leading-relaxed text-[var(--text-secondary)]">
-					{action === "delete" ? t("confirm_delete_message", { name }) : t("confirm_reprocess_message", { name })}
+					{action === "delete"
+						? t("confirm_delete_message", { name })
+						: t("confirm_reprocess_message", { name })}
 				</p>
 				<div className="flex justify-end gap-3">
-					<OutlineButton onClick={onCancel}>{t("confirm_cancel")}</OutlineButton>
-					<PrimaryButton onClick={() => { onConfirm(); onCancel(); }}>
-						{action === "delete" ? t("confirm_delete_btn") : t("confirm_reprocess_btn")}
+					<OutlineButton onClick={onCancel}>
+						{t("confirm_cancel")}
+					</OutlineButton>
+					<PrimaryButton
+						onClick={() => {
+							onConfirm();
+							onCancel();
+						}}
+					>
+						{action === "delete"
+							? t("confirm_delete_btn")
+							: t("confirm_reprocess_btn")}
 					</PrimaryButton>
 				</div>
 			</div>
