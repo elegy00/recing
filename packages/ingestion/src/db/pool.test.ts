@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from "vitest";
-import { getDb, closeDb, maskPassword } from "./db.js";
+import { closeDb, getDb, maskPassword } from "./pool.js";
 
 const DEFAULT_URL = "postgresql://recing:recing@localhost:5432/recing";
 

@@ -8,12 +8,15 @@ const mockDb = { query: mockQuery } as unknown as Pool;
 const mockFetchUrl = vi.fn();
 const mockExtractRecipe = vi.fn();
 
-vi.mock("./url-fetcher.js", () => ({
+vi.mock("../fetch/url-fetcher.js", () => ({
   fetchUrl: (...args: unknown[]) => mockFetchUrl(...args),
 }));
 
-vi.mock("./llm-extraction.js", () => ({
+vi.mock("../extraction/url-extractor.js", () => ({
   extractRecipe: (...args: unknown[]) => mockExtractRecipe(...args),
+}));
+
+vi.mock("../extraction/types.js", () => ({
   LlmExtractionError: class extends Error {
     constructor(public readonly code: string, message?: string) {
       super(message ?? "");
@@ -23,13 +26,13 @@ vi.mock("./llm-extraction.js", () => ({
   },
 }));
 
-vi.mock("./db.js", () => ({
+vi.mock("../db/pool.js", () => ({
   getDb: () => mockDb,
   closeDb: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { runWorker } from "./worker.js";
-import { closeDb } from "./db.js";
+import { runWorker } from "./url-ingestion-worker.js";
+import { closeDb } from "../db/pool.js";
 
 const extractionConfig = { endpoint: "http://localhost:8085/v1/chat/completions", model: "qwen3.6" };
 

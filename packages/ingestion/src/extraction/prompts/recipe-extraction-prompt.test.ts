@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, SCHEMA_VERSION } from "./llm-prompt.js";
+import { buildSystemPrompt, SCHEMA_VERSION } from "./recipe-extraction-prompt.js";
 
 describe("buildSystemPrompt", () => {
   const prompt = buildSystemPrompt(SCHEMA_VERSION);

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtractionConfig, ExtractionInput } from "./llm-extraction.js";
-import { extractRecipe, LlmExtractionError } from "./llm-extraction.js";
+import { extractRecipe } from "./url-extractor.js";
+import { LlmExtractionError, type ExtractionConfig, type ExtractionInput } from "./types.js";
 import { tokensPerSecond as calcTokensPerSecond, LlmErrorCode } from "@recing/schema";
 
 // Helper to create a mock fetch that returns a chat completion response

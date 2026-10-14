@@ -39,7 +39,7 @@ const MOCK_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-function mockConfig(): import("./llm-extraction.js").ExtractionConfig {
+function mockConfig(): import("./types.js").ExtractionConfig {
   return {
     model: "qwen3.6",
     endpoint: "http://localhost:8085/v1/chat/completions",
@@ -67,20 +67,20 @@ function buildLlmResponse(extraction: import("@recing/schema").RecipeExtraction)
 // ── Tests ──────────────────────────────────────────────────────────────
 
 describe("Full extraction pipeline integration", () => {
-  let extractRecipe: typeof import("./llm-extraction.js").extractRecipe;
+  let extractRecipe: typeof import("./url-extractor.js").extractRecipe;
   let sendChatCompletionSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     // Reset modules to get clean state
     await vi.resetModules();
 
-    // Create spy, then import llm-client to attach it
+    // Create spy, then import llm client to attach it
     const mockFn = vi.fn().mockResolvedValue("");
-    const llmClientMod = await import("./llm-client.js");
+    const llmClientMod = await import("../llm/client.js");
     sendChatCompletionSpy = vi.spyOn(llmClientMod, "sendChatCompletion").mockImplementation(mockFn);
 
     // Import extractRecipe after the spy is set up
-    const extractionMod = await import("./llm-extraction.js");
+    const extractionMod = await import("./url-extractor.js");
     extractRecipe = extractionMod.extractRecipe;
   });
 
@@ -222,7 +222,7 @@ describe("Full extraction pipeline integration", () => {
 
     const callArgs = sendChatCompletionSpy.mock.calls[0];
     expect(callArgs).toHaveLength(2);
-    const [_config, requestBody] = callArgs as [import("./llm-client.js").LlamaClientConfig, import("./llm-client.js").ChatCompletionRequest];
+    const [_config, requestBody] = callArgs as [import("../llm/client.js").LlamaClientConfig, import("../llm/client.js").ChatCompletionRequest];
 
     expect(requestBody.model).toBe("qwen3.6");
     expect(requestBody.temperature).toBe(0.0);

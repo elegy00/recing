@@ -1,14 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
-import { buildRequest, sendChatCompletion } from "./llm-client.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildRequest, resolveModel, sendChatCompletion } from "./client.js";
+
+describe("resolveModel", () => {
+  it("returns the configured model when set", () => {
+    expect(resolveModel({ endpoint: "http://x", model: "my-model" })).toBe("my-model");
+  });
+
+  it("falls back to the default model", () => {
+    expect(resolveModel({ endpoint: "http://x" })).toBe("qwen3.6");
+  });
+});
 
 describe("buildRequest", () => {
   it("builds correct request structure", () => {
-    const req = buildRequest(
-      "test-model",
-      "You are a recipe extractor.",
-      "Source: http://example.com\nFlour, sugar...",
-      undefined
-    );
+    const req = buildRequest("test-model", {
+      system: "You are a recipe extractor.",
+      user: "Source: http://example.com\nFlour, sugar...",
+    });
 
     expect(req.model).toBe("test-model");
     expect(req.temperature).toBe(0.0);
@@ -18,20 +26,20 @@ describe("buildRequest", () => {
   });
 
   it("includes two messages (system + user)", () => {
-    const req = buildRequest("model", "sys", "usr", undefined);
+    const req = buildRequest("model", { system: "sys", user: "usr" });
     expect(req.messages).toHaveLength(2);
     expect(req.messages[0]).toEqual({ role: "system", content: "sys" });
     expect(req.messages[1]).toEqual({ role: "user", content: "usr" });
   });
 
   it("disables thinking for Qwen3", () => {
-    const req = buildRequest("model", "sys", "usr", undefined);
+    const req = buildRequest("model", { system: "sys", user: "usr" });
     expect(req.chat_template_kwargs).toEqual({ enable_thinking: false });
   });
 
-  it("includes response_format when schema is provided", () => {
+  it("includes json_schema response_format when a schema is provided", () => {
     const schemaJson = { type: "object", properties: {} };
-    const req = buildRequest("model", "sys", "usr", schemaJson);
+    const req = buildRequest("model", { system: "sys", user: "usr", jsonSchema: schemaJson });
 
     expect(req.response_format).toEqual({
       type: "json_schema",
@@ -43,15 +51,39 @@ describe("buildRequest", () => {
     });
   });
 
-  it("omits response_format when no schema provided", () => {
-    const req = buildRequest("model", "sys", "usr", undefined);
+  it("includes json_object response_format when jsonObject is set", () => {
+    const req = buildRequest("model", { system: "sys", user: "usr", jsonObject: true });
+    expect(req.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("omits response_format when no schema or jsonObject provided", () => {
+    const req = buildRequest("model", { system: "sys", user: "usr" });
     expect(req.response_format).toBeUndefined();
+  });
+
+  it("supports multimodal user content (text + image parts)", () => {
+    const req = buildRequest("model", {
+      system: "sys",
+      user: [
+        { type: "text", text: "Look at this photo" },
+        { type: "image_url", image_url: { url: "data:image/png;base64,abc" } },
+      ],
+    });
+
+    expect(req.messages[1].content).toEqual([
+      { type: "text", text: "Look at this photo" },
+      { type: "image_url", image_url: { url: "data:image/png;base64,abc" } },
+    ]);
   });
 });
 
 describe("sendChatCompletion", () => {
   const config = { endpoint: "http://localhost:8085/v1/chat/completions", timeoutSeconds: 60 };
-  const requestBody = buildRequest("qwen3.6", "sys", "usr");
+  const requestBody = buildRequest("qwen3.6", { system: "sys", user: "usr" });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it("returns response body on success", async () => {
     const mockResponse = '{"choices":[{"message":{"content":"{}"}}],"usage":{"prompt_tokens":10,"completion_tokens":5}}';
@@ -85,8 +117,6 @@ describe("sendChatCompletion", () => {
       "HTTP 401"
     );
   });
-
-
 
   it("aborts with AbortError name", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => {

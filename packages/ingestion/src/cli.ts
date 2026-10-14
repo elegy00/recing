@@ -1,37 +1,26 @@
 #!/usr/bin/env node
+/**
+ * CLI entry point: argument parsing, command dispatch, and shutdown wiring only.
+ * Pipeline logic lives in workers/, extraction/, and fetch/.
+ */
 
 import { config as loadDotenv } from "dotenv";
 loadDotenv({ path: new URL("../../../.env", import.meta.url) });
 
-import { runWorker } from "./worker.js";
-import { runPhotoWorker } from "./photo-worker.js";
-import { closeDb } from "./db.js";
-import { describeError } from "./error-utils.js";
-import { fetchUrl } from "./url-fetcher.js";
-import { extractRecipe } from "./llm-extraction.js";
-
-// ─── Configuration (env vars) ────────────────────────────────────────────────
-
-interface CliConfig {
-  endpoint: string;
-  model: string;
-  maxContentChars: number;
-  pollIntervalMs: number;
-}
-
-function loadConfig(): CliConfig {
-  return {
-    endpoint: process.env.LLM_ENDPOINT ?? "http://localhost:8085/v1/chat/completions",
-    model: process.env.LLM_MODEL ?? "qwen3.6",
-    maxContentChars: Number(process.env.MAX_CONTENT_CHARS) || 60_000,
-    pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5_000,
-  };
-}
+import { loadEnvConfig } from "./config/env-config.js";
+import { closeDb, getDb } from "./db/pool.js";
+import { createJob, markCompleted } from "./db/job-repository.js";
+import { extractRecipe } from "./extraction/url-extractor.js";
+import { fetchUrl } from "./fetch/url-fetcher.js";
+import { describeError } from "./util/error-utils.js";
+import { runPhotoWorker } from "./workers/photo-ingestion-worker.js";
+import { runWorker } from "./workers/url-ingestion-worker.js";
 
 // ─── Commands ────────────────────────────────────────────────────────────────
 
+/** Starts both ingestion workers and blocks until SIGINT/SIGTERM. */
 async function cmdStart(): Promise<void> {
-  const config = loadConfig();
+  const config = loadEnvConfig();
   console.warn("Recing Ingestion Worker — starting\n");
 
   let shuttingDown = false;
@@ -39,7 +28,7 @@ async function cmdStart(): Promise<void> {
   console.warn("Starting URL-based ingestion worker… done.");
 
   console.warn("\nStarting photo-based ingestion worker...");
-  const photoController = runPhotoWorker(config as any);
+  const photoController = runPhotoWorker(config);
   console.warn("Photo-based ingestion worker… started.");
 
   function shutdown(sig: string) {
@@ -66,23 +55,17 @@ async function cmdStart(): Promise<void> {
   process.exit(0);
 }
 
+/** Single-shot fetch + extraction for testing/debugging. */
 async function cmdFetch(url: string): Promise<void> {
   console.warn(`Recing Ingestion — single-shot fetch\n`);
   console.warn(`URL: ${url}`);
 
-  const config = loadConfig();
+  const config = loadEnvConfig();
+  const db = getDb();
 
   // Step 1: Submit job to database
-  const { getDb } = await import("./db.js");
-  const db = getDb();
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  await db.query(
-    "INSERT INTO jobs (id, url, status, created_at, updated_at, result, error) VALUES ($1, $2, 'PENDING', $3, $3, NULL, NULL)",
-    [id, url, now]
-  );
-  console.warn(`Submitted as job ${id}\n`);
+  const jobId = await createJob(db, url);
+  console.warn(`Submitted as job ${jobId}\n`);
 
   // Step 2: Fetch content
   console.warn("Fetching URL...");
@@ -99,13 +82,10 @@ async function cmdFetch(url: string): Promise<void> {
   });
 
   // Step 4: Save result
-  await db.query(
-    "UPDATE jobs SET status = 'COMPLETED', result = $2, updated_at = $3 WHERE id = $1",
-    [id, JSON.stringify(extraction.extraction), new Date().toISOString()]
-  );
+  await markCompleted(db, jobId, JSON.stringify(extraction.extraction));
 
   await closeDb();
-  console.warn(`\n✅ Done — job ${id} completed`);
+  console.warn(`\n✅ Done — job ${jobId} completed`);
 }
 
 // ─── Entry Point ─────────────────────────────────────────────────────────────
