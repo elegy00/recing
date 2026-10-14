@@ -1,52 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listPhotoJobs, type PhotoJob } from "../api/photo-jobs";
-import { listRecipes } from "../api/recipes";
+import { listPhotoJobs, retryPhotoJob } from "../api/photo-jobs";
+import { listRecipes, retryRecipe } from "../api/recipes";
 import { Spinner } from "../components/atoms/spinner/Spinner";
 import {
-	type IngestRow,
 	IngestTable,
 } from "../components/organisms/ingest-table/IngestTable";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
-import type { Job } from "../types";
-import { timeAgo } from "../utils/timeAgo";
-
-function statusOf(job: {
-	status: string;
-	error?: string | null;
-}): IngestRow["status"] {
-	if (job.status === "FAILED" || job.error) return "FAILED";
-	if (job.status === "PROCESSING") return "PROCESSING";
-	return "PENDING";
-}
-
-function toUrlEntry(job: Job): IngestRow {
-	const url = job.url;
-	return {
-		_id: job._id,
-		source: "url",
-		displayName: url.length > 60 ? `${url.slice(0, 60)}…` : url,
-		status: statusOf(job),
-		createdAt: job.createdAt,
-		timeLabel: timeAgo(job.createdAt),
-	};
-}
-
-function toPhotoEntry(job: PhotoJob): IngestRow {
-	return {
-		_id: job._id,
-		source: "photo",
-		displayName: `${job.totalPhotos} Foto${job.totalPhotos > 1 ? "s" : ""}`,
-		status: statusOf(job),
-		createdAt: job.createdAt,
-		timeLabel: timeAgo(job.createdAt),
-	};
-}
+import type { IngestRow } from "../utils/ingest-rows";
+import { toPhotoEntry, toUrlEntry } from "../utils/ingest-rows";
 
 export default function IngestPage() {
 	const { t } = useTranslation();
 	const [entries, setEntries] = useState<IngestRow[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [retryingIds, setRetryingIds] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
 
 	const fetchJobs = useCallback(async () => {
 		try {
@@ -82,6 +52,28 @@ export default function IngestPage() {
 		return () => clearInterval(interval);
 	}, [fetchJobs]);
 
+	async function handleRetry(row: IngestRow) {
+		if (retryingIds.has(row._id)) return;
+		setRetryingIds((prev) => new Set(prev).add(row._id));
+		try {
+			if (row.source === "url") {
+				await retryRecipe({ data: { id: row._id } });
+			} else {
+				const res = await retryPhotoJob({ data: { id: row._id } });
+				if (!res.ok) throw new Error(res.error);
+			}
+			await fetchJobs();
+		} catch (err) {
+			console.error("Failed to restart job", err);
+		} finally {
+			setRetryingIds((prev) => {
+				const next = new Set(prev);
+				next.delete(row._id);
+				return next;
+			});
+		}
+	}
+
 	if (loading && entries.length === 0) {
 		return (
 			<div className="mx-auto max-w-4xl px-6 py-12 text-center text-[var(--text-secondary)]">
@@ -101,7 +93,7 @@ export default function IngestPage() {
 				<span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
 				{t("ingest_polling")}
 			</p>
-			<IngestTable rows={entries} />
+			<IngestTable rows={entries} retryingIds={retryingIds} onRetry={handleRetry} />
 		</div>
 	);
 }

@@ -71,6 +71,8 @@ export default {
 	ingest_url: "URL",
 	ingest_status: "Status",
 	ingest_submitted: "Eingereicht",
+	ingest_actions: "Aktionen",
+	ingest_retry: "Erneut starten",
 	ingest_empty: "Keine Rezepte in Bearbeitung.",
 	ingest_pending: "Ausstehend",
 	ingest_processing: "In Verarbeitung…",

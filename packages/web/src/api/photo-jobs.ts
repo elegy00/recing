@@ -124,6 +124,38 @@ export const submitPhotoJob = createServerFn({ method: "POST" })
 		return { jobId };
 	});
 
+// ─── POST /api/photo-jobs/:id/retry — Reset FAILED job to PENDING ─────────
+
+export const retryPhotoJob = createServerFn({ method: "POST" })
+	.validator(requireId)
+	.handler(async (ctx) => {
+		const { id } = ctx.data;
+
+		if (!isUuid(id)) {
+			return { ok: false, error: "Job not found" };
+		}
+
+		const pool = getPool();
+		const res = await pool.query(
+			`UPDATE photo_jobs SET status = 'PENDING', error = NULL, updated_at = NOW()
+			 WHERE id = $1::uuid AND status = 'FAILED'`,
+			[id],
+		);
+
+		if (res.rowCount === 0) {
+			return { ok: false, error: "Job not found or not in failed state" };
+		}
+
+		// Re-queue chunks that did not produce a result (EXTRACTING covers crashes).
+		await pool.query(
+			`UPDATE photo_chunks SET status = 'PENDING', error = NULL, updated_at = NOW()
+			 WHERE job_id = $1::uuid AND status IN ('FAILED', 'EXTRACTING')`,
+			[id],
+		);
+
+		return { ok: true, error: null };
+	});
+
 // ─── GET /api/photo-jobs — List photo jobs (non-completed by default) ────
 
 export const listPhotoJobs = createServerFn({ method: "GET" }).handler(
