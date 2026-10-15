@@ -17,33 +17,35 @@ A separate workflow from URL-based ingestion that processes 1-N photos of recipe
                                                  │             │
                                                  │ photo_jobs  │
                                                  │ photos      │ ← image files
-                                                 │ chunks      │ ← processing state + results
+                                                 │ chunks      │ ← state + markdown
                                                  └─────────────┘
 ```
 
 ## Workflow Steps (per photo job)
 
-### Phase 1: CHUNKING — Structured extraction per photo
+### Phase 1: CHUNKING — Markdown transcription per photo
 Each photo is processed **one at a time**:
 
 1. `PENDING` → pick next chunk with status PENDING
 2. Mark chunk as `EXTRACTING`, persist immediately
 3. Fetch image data_uri from `photos` table (via FK)
-4. Send to vision LLM → get structured RecipeExtraction JSON
-5. Save extraction, mark chunk as `EXTRACTED`
+4. Send to vision LLM → transcribe all visible text as **markdown**
+5. Save markdown in `chunks.extracted_markdown` (intermediate result), mark `EXTRACTED`
 6. Update job's `completed_chunks` counter (+1 per success)
 7. Retry up to 2 times on failure before marking FAILED
 
-### Phase 2: MERGING — Combine extractions
-1. All extracted chunks fetched (in order)
-2. Send all RecipeExtraction objects to merge LLM → final RecipeExtraction JSON
+### Phase 2: MERGING — Markdown → RecipeExtraction JSON
+1. All extracted chunks fetched (in order), markdowns aggregated into one document
+2. Converted via the **same pipeline as URL ingestion** (`extractRecipe`: same prompt,
+   jsonSchema, content reduction, retry and error policy)
 3. Save result, mark job as `COMPLETED`
-4. Retry up to 2 times on failure
 
-### Failure handling
+### Failure handling & restart
 - Individual chunk failure → marked FAILED, other chunks still processed
-- Job-level failure (all chunks failed or merge error) → job marked FAILED
-- All state persisted at each step — can resume from any point
+- Job-level failure (all chunks failed or conversion error) → job marked FAILED
+- **Retry** resets the whole job: all chunks back to PENDING, intermediate markdown
+  cleared, `completed_chunks` reset — a restart overwrites previous intermediate results
+- All state persisted at each step — a worker crash resumes from the last settled chunk
 
 ## Database Schema
 
@@ -56,7 +58,7 @@ photo_jobs:
   result          JSONB (final RecipeExtraction)
   error           TEXT
 
-photos:                    -- NEW: dedicated image storage
+photos:                    -- dedicated image storage
   id              UUID PK
   job_id          FK → photo_jobs ON DELETE CASCADE
   order_num       INTEGER (0-based index within job)
@@ -64,26 +66,26 @@ photos:                    -- NEW: dedicated image storage
   data_uri        TEXT (base64 image for LLM vision)
   size_bytes      BIGINT
 
-photo_chunks:              -- processing state + results
+photo_chunks:              -- processing state + intermediate results
   id                UUID PK
   job_id            FK → photo_jobs ON DELETE CASCADE
   order_num         INTEGER
   photo_id          FK → photos(id) ON DELETE CASCADE
   status            PENDING | EXTRACTING | EXTRACTED | FAILED
-  extracted_json    JSONB (structured RecipeExtraction per photo)
+  extracted_markdown TEXT (per-photo transcription, intermediate result)
   error             TEXT
 ```
 
 ## Key Differences from URL Ingestion
 
-| Aspect          | URL Ingestion       | Photo Ingestion         |
-|-----------------|--------------------|------------------------|
-| Input           | Single URL         | 1-N photos (base64)    |
-| Processing      | Fetch → LLM        | Vision LLM per photo   |
-| Output step     | Direct JSON        | Structured JSON per photo, then merge |
-| Finalization    | N/A                | Merge all extractions  |
-| Retry           | 2 attempts         | 2 attempts (both steps)|
-| Worker          | `runWorker()`      | `runPhotoWorker()`     |
+| Aspect          | URL Ingestion       | Photo Ingestion                  |
+|-----------------|--------------------|----------------------------------|
+| Input           | Single URL         | 1-N photos (base64)              |
+| Processing      | Fetch → LLM        | Vision LLM per photo → markdown  |
+| Output step     | Text → JSON        | Aggregated markdown → JSON (same pipeline) |
+| Finalization    | N/A                | Markdown conversion after all photos |
+| Retry           | 2 attempts         | 2 attempts (transcription); conversion reuses URL policy |
+| Worker          | `runWorker()`      | `runPhotoWorker()`               |
 | DB tables       | `jobs`             | `photo_jobs`, `photos`, `chunks` |
 
 ## Running Both Workers

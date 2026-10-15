@@ -1,77 +1,62 @@
 /**
- * Photo recipe extraction: per-photo vision extraction and multi-fragment merge.
+ * Photo recipe extraction: per-photo markdown transcription + final conversion.
  * Pure LLM orchestration — no database access (the worker persists between steps).
+ *
+ *   1. Per photo: the vision LLM transcribes the visible text into markdown
+ *      (the worker stores it as an intermediate result).
+ *   2. After all photos: the aggregated markdown is converted to a final
+ *      RecipeExtraction JSON using the same pipeline as URL ingestion.
  */
 
 import * as schema from "@recing/schema";
 import { buildRequest, resolveModel, sendChatCompletion, type LlamaClientConfig } from "../llm/client.js";
 import { parseAssistantReply } from "../llm/response.js";
-import { MERGE_SYSTEM_PROMPT, PHOTO_EXTRACT_SYSTEM_PROMPT } from "./prompts/photo-prompts.js";
+import { extractRecipe } from "./url-extractor.js";
+import { PHOTO_TRANSCRIBE_SYSTEM_PROMPT, PHOTO_TRANSCRIBE_USER_TEXT } from "./prompts/photo-prompts.js";
 
-/** One successfully extracted per-photo fragment. */
-export interface PhotoFragment {
+/** One successfully transcribed per-photo fragment. */
+export interface PhotoMarkdownFragment {
   orderNum: number;
-  extraction: schema.RecipeExtraction;
+  markdown: string;
 }
 
-/** Extracts a RecipeExtraction from a single photo (base64 data URI) via the vision LLM. */
-export async function extractFromPhoto(
-  config: LlamaClientConfig,
-  dataUri: string
-): Promise<schema.RecipeExtraction> {
+/** Transcribes all visible text of a single photo (base64 data URI) into markdown via the vision LLM. */
+export async function extractMarkdownFromPhoto(config: LlamaClientConfig, dataUri: string): Promise<string> {
   const requestBody = buildRequest(resolveModel(config), {
-    system: PHOTO_EXTRACT_SYSTEM_PROMPT,
+    system: PHOTO_TRANSCRIBE_SYSTEM_PROMPT,
     user: [
-      { type: "text", text: "Extract all recipe information visible in this photo. Return structured JSON." },
+      { type: "text", text: PHOTO_TRANSCRIBE_USER_TEXT },
       { type: "image_url", image_url: { url: dataUri } },
     ],
-    jsonObject: true, // force JSON output
   });
 
   const rawBody = await sendChatCompletion(config, requestBody);
-  const reply = parseAssistantReply(rawBody);
-  return parseRecipeJson(reply.text);
+  return parseAssistantReply(rawBody).text;
 }
 
-/** Merges per-photo extractions into one final RecipeExtraction. */
-export async function mergeExtractedRecipes(
+/**
+ * Converts the aggregated per-photo markdown into the final RecipeExtraction.
+ * Reuses the URL ingestion pipeline — same prompt, schema, content reduction,
+ * retry and error policy (see url-extractor.ts).
+ */
+export function convertMarkdownToRecipe(
   config: LlamaClientConfig,
-  fragments: PhotoFragment[]
+  source: string,
+  fragments: PhotoMarkdownFragment[]
 ): Promise<schema.RecipeExtraction> {
-  const requestBody = buildRequest(resolveModel(config), {
-    system: MERGE_SYSTEM_PROMPT,
-    user: buildMergeUserPrompt(fragments),
-    jsonSchema: schema.recipeExtractionJsonSchema,
-  });
-
-  const rawBody = await sendChatCompletion(config, requestBody);
-  const reply = parseAssistantReply(rawBody);
-  return parseRecipeJson(reply.text);
+  const body = aggregatePhotoMarkdown(fragments);
+  return extractRecipe(config, { url: source, contentType: "text/markdown", title: null, body }).then(
+    ({ extraction }) => extraction
+  );
 }
 
-/** Builds the user message containing all per-photo extractions to merge. */
-function buildMergeUserPrompt(fragments: PhotoFragment[]): string {
-  const parts = [
-    "Here are structured RecipeExtraction objects extracted from individual photos. Merge them into one complete recipe.",
-    "",
-  ];
+/** Joins the per-photo markdown fragments into a single document. */
+export function aggregatePhotoMarkdown(fragments: PhotoMarkdownFragment[]): string {
+  const parts = ["Here is the transcribed text of each photo of one recipe.", ""];
 
-  for (const { orderNum, extraction } of fragments) {
-    parts.push(`--- Photo ${orderNum + 1} ---`);
-    parts.push(JSON.stringify(extraction, null, 2));
-    parts.push("");
+  for (const { orderNum, markdown } of fragments) {
+    parts.push(`--- Photo ${orderNum + 1} ---`, markdown.trim(), "");
   }
 
   return parts.join("\n");
-}
-
-/** Parses and validates model output as a RecipeExtraction. */
-function parseRecipeJson(text: string): schema.RecipeExtraction {
-  let node: unknown;
-  try {
-    node = JSON.parse(text);
-  } catch {
-    throw new Error(`Could not parse model output as JSON: ${text.substring(0, 200)}`);
-  }
-  return schema.parseRecipeExtraction(node);
 }

@@ -24,8 +24,8 @@ export interface PhotoChunk {
 	orderNum: number;
 	status: string;
 	dataUri?: string | null;
-	/** Per-chunk extraction result (JSONB), same shape as the job's final result. */
-	extractedJson?: RecipeResult | null;
+	/** Per-photo markdown transcription — intermediate result of the ingestion pipeline. */
+	extractedMarkdown?: string | null;
 	error?: string | null;
 }
 
@@ -60,7 +60,7 @@ function mapPhotoChunkRow(row: Record<string, unknown>): PhotoChunk {
 		photo_id?: string | null;
 		status: string;
 		data_uri?: string; // joined from photos table
-		extracted_json?: RecipeResult | null;
+		extracted_markdown?: string | null;
 		error?: string | null;
 	};
 	return {
@@ -69,7 +69,7 @@ function mapPhotoChunkRow(row: Record<string, unknown>): PhotoChunk {
 		orderNum: r.order_num,
 		status: r.status,
 		dataUri: r.data_uri ?? null, // from photos JOIN
-		extractedJson: r.extracted_json,
+		extractedMarkdown: r.extracted_markdown ?? null,
 		error: r.error,
 	};
 }
@@ -137,7 +137,7 @@ export const retryPhotoJob = createServerFn({ method: "POST" })
 
 		const pool = getPool();
 		const res = await pool.query(
-			`UPDATE photo_jobs SET status = 'PENDING', error = NULL, updated_at = NOW()
+			`UPDATE photo_jobs SET status = 'PENDING', error = NULL, completed_chunks = 0, updated_at = NOW()
 			 WHERE id = $1::uuid AND status = 'FAILED'`,
 			[id],
 		);
@@ -146,10 +146,11 @@ export const retryPhotoJob = createServerFn({ method: "POST" })
 			return { ok: false, error: "Job not found or not in failed state" };
 		}
 
-		// Re-queue chunks that did not produce a result (EXTRACTING covers crashes).
+		// Restart the whole job from scratch: re-extract every photo and overwrite
+		// any previous intermediate markdown results (also covers EXTRACTING crashes).
 		await pool.query(
-			`UPDATE photo_chunks SET status = 'PENDING', error = NULL, updated_at = NOW()
-			 WHERE job_id = $1::uuid AND status IN ('FAILED', 'EXTRACTING')`,
+			`UPDATE photo_chunks SET status = 'PENDING', error = NULL, extracted_markdown = NULL, updated_at = NOW()
+			 WHERE job_id = $1::uuid`,
 			[id],
 		);
 

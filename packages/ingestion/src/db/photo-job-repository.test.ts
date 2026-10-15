@@ -99,11 +99,11 @@ describe("chunk operations", () => {
   });
 
   it("fetchSettledChunks selects EXTRACTED/FAILED chunks in one query and maps rows", async () => {
-    const db = makeDb([{ id: "c1", order_num: 0, status: "EXTRACTED", extracted_json: { a: 1 }, error: null }], 1);
+    const db = makeDb([{ id: "c1", order_num: 0, status: "EXTRACTED", extracted_markdown: "# Pancakes", error: null }], 1);
     const chunks = await fetchSettledChunks(db, "job-1");
 
     expect(chunks).toEqual([
-      { id: "c1", orderNum: 0, status: PhotoChunkStatus.EXTRACTED, extractedJson: { a: 1 }, error: null },
+      { id: "c1", orderNum: 0, status: PhotoChunkStatus.EXTRACTED, extractedMarkdown: "# Pancakes", error: null },
     ]);
     const [sql, params] = queryCalls(db)[0];
     expect(sql).toContain("WHERE job_id = $1 AND status IN ('EXTRACTED', 'FAILED')");
@@ -118,12 +118,12 @@ describe("chunk operations", () => {
     expect(params).toEqual(["chunk-1"]);
   });
 
-  it("markChunkExtracted stores the extraction as jsonb and clears any error", async () => {
+  it("markChunkExtracted stores the markdown transcription and clears any error", async () => {
     const db = makeDb([], 1);
-    await markChunkExtracted(db, "chunk-1", '{"a":1}');
+    await markChunkExtracted(db, "chunk-1", "# Pancakes");
     const [sql, params] = queryCalls(db)[0];
-    expect(sql).toContain("UPDATE photo_chunks SET status = 'EXTRACTED', extracted_json = $2::jsonb, error = NULL");
-    expect(params).toEqual(["chunk-1", '{"a":1}']);
+    expect(sql).toContain("UPDATE photo_chunks SET status = 'EXTRACTED', extracted_markdown = $2, error = NULL");
+    expect(params).toEqual(["chunk-1", "# Pancakes"]);
   });
 
   it("markChunkFailed stores the failure reason", async () => {

@@ -4,7 +4,7 @@
  */
 
 import type { Pool } from "pg";
-import { PhotoChunkStatus, PhotoJobStatus, type RecipeExtraction } from "@recing/schema";
+import { PhotoChunkStatus, PhotoJobStatus } from "@recing/schema";
 
 /** A pending photo chunk with its photo data. */
 export interface PendingPhotoChunk {
@@ -19,8 +19,8 @@ export interface SettledPhotoChunk {
   id: string;
   orderNum: number;
   status: PhotoChunkStatus;
-  /** Structured extraction result (EXTRACTED chunks only). */
-  extractedJson: RecipeExtraction | null;
+  /** Markdown transcription of the photo (EXTRACTED chunks only). */
+  extractedMarkdown: string | null;
   error: string | null;
 }
 
@@ -100,7 +100,7 @@ export async function fetchPendingChunks(db: Pool, jobId: string): Promise<Pendi
 /** All settled (EXTRACTED or FAILED) chunks of a job, in order. */
 export async function fetchSettledChunks(db: Pool, jobId: string): Promise<SettledPhotoChunk[]> {
   const res = await db.query(
-    `SELECT id, order_num, status, error, extracted_json
+    `SELECT id, order_num, status, error, extracted_markdown
      FROM photo_chunks
      WHERE job_id = $1 AND status IN ('EXTRACTED', 'FAILED')
      ORDER BY order_num ASC`,
@@ -110,7 +110,7 @@ export async function fetchSettledChunks(db: Pool, jobId: string): Promise<Settl
     id: row.id as string,
     orderNum: Number(row.order_num),
     status: row.status as PhotoChunkStatus,
-    extractedJson: (row.extracted_json as RecipeExtraction | null) ?? null,
+    extractedMarkdown: (row.extracted_markdown as string | null) ?? null,
     error: (row.error as string | null) ?? null,
   }));
 }
@@ -123,11 +123,11 @@ export async function markChunkExtracting(db: Pool, chunkId: string): Promise<vo
   );
 }
 
-/** Stores the extraction result and marks a chunk EXTRACTED. */
-export async function markChunkExtracted(db: Pool, chunkId: string, extractionJson: string): Promise<void> {
+/** Stores the markdown transcription and marks a chunk EXTRACTED (overwrites any previous result). */
+export async function markChunkExtracted(db: Pool, chunkId: string, markdown: string): Promise<void> {
   await db.query(
-    "UPDATE photo_chunks SET status = 'EXTRACTED', extracted_json = $2::jsonb, error = NULL, updated_at = NOW() WHERE id = $1::uuid",
-    [chunkId, extractionJson]
+    "UPDATE photo_chunks SET status = 'EXTRACTED', extracted_markdown = $2, error = NULL, updated_at = NOW() WHERE id = $1::uuid",
+    [chunkId, markdown]
   );
 }
 

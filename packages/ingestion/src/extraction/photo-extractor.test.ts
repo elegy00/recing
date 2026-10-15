@@ -9,93 +9,109 @@ vi.mock("../llm/client.js", async (importOriginal) => {
   return { ...actual, sendChatCompletion: (...args: unknown[]) => mockSend(...args) };
 });
 
-import { extractFromPhoto, mergeExtractedRecipes } from "./photo-extractor.js";
+// The markdown → JSON conversion reuses the URL ingestion pipeline — mock it
+// here to keep this file focused on photo-specific behavior.
+const mockExtractRecipe = vi.hoisted(() => vi.fn());
+vi.mock("./url-extractor.js", () => ({ extractRecipe: (...args: unknown[]) => mockExtractRecipe(...args) }));
+
+import {
+  aggregatePhotoMarkdown,
+  convertMarkdownToRecipe,
+  extractMarkdownFromPhoto,
+} from "./photo-extractor.js";
 
 const config = { endpoint: "http://localhost:8085/v1/chat/completions", model: "qwen3.6" };
 const DATA_URI = "data:image/jpeg;base64,PHNvbWUgaW1hZ2UgZGF0YT4=";
-
-function makeExtraction(name: string): RecipeExtraction {
-  return JSON.parse(
-    JSON.stringify({
-      schemaVersion: "recipe_extraction.v1",
-      status: "extracted",
-      sourceUrl: null,
-      recipeName: name,
-      ingredients: [{ quantity: "1.5", unit: "cups", name: "all-purpose flour", note: "", originalText: "1.5 cups all-purpose flour" }],
-      instructions: [{ stepNumber: 1, text: "Mix it." }],
-      notes: [],
-    })
-  );
-}
 
 function chatResponse(content: string): string {
   return JSON.stringify({ choices: [{ message: { role: "assistant", content } }] });
 }
 
-describe("extractFromPhoto", () => {
+describe("extractMarkdownFromPhoto", () => {
   beforeEach(() => {
     mockSend.mockReset();
   });
 
-  it("sends a multimodal request with the image and parses the reply", async () => {
-    mockSend.mockResolvedValueOnce(chatResponse(JSON.stringify(makeExtraction("Photo Pancakes"))));
+  it("sends a multimodal request with the image and returns the markdown reply", async () => {
+    const markdown = "# Pancakes\n## Ingredients\n- 2 eggs";
+    mockSend.mockResolvedValueOnce(chatResponse(markdown));
 
-    const extraction = await extractFromPhoto(config, DATA_URI);
-    expect(extraction.recipeName).toBe("Photo Pancakes");
+    const result = await extractMarkdownFromPhoto(config, DATA_URI);
+    expect(result).toBe(markdown);
 
     // Verify the request that was sent
     const [_cfg, requestBody] = mockSend.mock.calls[0] as [unknown, { messages: Array<{ role: string; content: unknown }>; response_format?: { type?: string } }];
     const userMessage = requestBody.messages.find((m) => m.role === "user")!;
     expect(userMessage.content).toEqual([
-      { type: "text", text: expect.stringContaining("photo") },
+      { type: "text", text: expect.stringMatching(/transcribe/i) },
       { type: "image_url", image_url: { url: DATA_URI } },
     ]);
-    expect(requestBody.response_format).toEqual({ type: "json_object" });
+    // Markdown output — no forced JSON response format
+    expect(requestBody.response_format).toBeUndefined();
   });
 
   it("strips code fences from the model output", async () => {
-    const fenced = "```json\n" + JSON.stringify(makeExtraction("Fenced")) + "\n```";
+    const fenced = "```markdown\n# Pancakes\n```";
     mockSend.mockResolvedValueOnce(chatResponse(fenced));
 
-    const extraction = await extractFromPhoto(config, DATA_URI);
-    expect(extraction.recipeName).toBe("Fenced");
+    const result = await extractMarkdownFromPhoto(config, DATA_URI);
+    expect(result).toBe("# Pancakes");
   });
 
   it("rejects when the model returns empty content", async () => {
     mockSend.mockResolvedValueOnce(JSON.stringify({ choices: [{ message: {} }] }));
-    await expect(extractFromPhoto(config, DATA_URI)).rejects.toThrow(/empty/i);
+    await expect(extractMarkdownFromPhoto(config, DATA_URI)).rejects.toThrow(/empty/i);
   });
 });
 
-describe("mergeExtractedRecipes", () => {
+describe("aggregatePhotoMarkdown", () => {
+  it("joins all fragments with per-photo section headers", () => {
+    const doc = aggregatePhotoMarkdown([
+      { orderNum: 0, markdown: "# Title\n- 2 eggs" },
+      { orderNum: 1, markdown: "## Instructions\n1. Mix" },
+    ]);
+
+    expect(doc).toContain("--- Photo 1 ---");
+    expect(doc).toContain("- 2 eggs");
+    expect(doc).toContain("--- Photo 2 ---");
+    expect(doc).toContain("1. Mix");
+  });
+});
+
+describe("convertMarkdownToRecipe", () => {
   beforeEach(() => {
-    mockSend.mockReset();
+    mockExtractRecipe.mockReset();
   });
 
-  it("includes all fragments in the user prompt and returns the merged result", async () => {
-    const merged = makeExtraction("Merged Pancakes");
-    mockSend.mockResolvedValueOnce(chatResponse(JSON.stringify(merged)));
+  it("feeds the aggregated markdown into the shared extraction pipeline", async () => {
+    const extraction: RecipeExtraction = JSON.parse(
+      JSON.stringify({
+        schemaVersion: "recipe_extraction.v1",
+        status: "extracted",
+        recipeName: "Pancakes",
+        ingredients: [],
+        instructions: [],
+        notes: [],
+      })
+    );
+    mockExtractRecipe.mockResolvedValueOnce({ extraction, metadata: {} });
 
     const fragments = [
-      { orderNum: 0, extraction: makeExtraction("Part A") },
-      { orderNum: 1, extraction: makeExtraction("Part B") },
+      { orderNum: 0, markdown: "# Title" },
+      { orderNum: 1, markdown: "## Instructions" },
     ];
-    const result = await mergeExtractedRecipes(config, fragments);
-    expect(result.recipeName).toBe("Merged Pancakes");
+    const result = await convertMarkdownToRecipe(config, "photo://job-1", fragments);
+    expect(result).toBe(extraction);
 
-    const [, requestBody] = mockSend.mock.calls[0] as [unknown, { messages: Array<{ role: string; content: unknown }>; response_format?: { type?: string } }];
-    const userPrompt = String(requestBody.messages.find((m) => m.role === "user")!.content);
-    expect(userPrompt).toContain("--- Photo 1 ---");
-    expect(userPrompt).toContain("Part A");
-    expect(userPrompt).toContain("--- Photo 2 ---");
-    expect(userPrompt).toContain("Part B");
-    expect(requestBody.response_format?.type).toBe("json_schema");
-  });
-
-  it("rejects when the merged output is not valid JSON", async () => {
-    mockSend.mockResolvedValueOnce(chatResponse("not json"));
-    await expect(
-      mergeExtractedRecipes(config, [{ orderNum: 0, extraction: makeExtraction("A") }])
-    ).rejects.toThrow(/could not parse/i);
+    expect(mockExtractRecipe).toHaveBeenCalledTimes(1);
+    const [cfg, input] = mockExtractRecipe.mock.calls[0] as [unknown, { url: string; contentType: string; title: null; body: string }];
+    expect(cfg).toBe(config);
+    expect(input.url).toBe("photo://job-1");
+    expect(input.contentType).toBe("text/markdown");
+    expect(input.title).toBeNull();
+    expect(input.body).toContain("--- Photo 1 ---");
+    expect(input.body).toContain("# Title");
+    expect(input.body).toContain("--- Photo 2 ---");
+    expect(input.body).toContain("## Instructions");
   });
 });

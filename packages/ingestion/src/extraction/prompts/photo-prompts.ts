@@ -1,31 +1,22 @@
 /**
- * Prompt templates for photo-based recipe ingestion (per-photo extraction + merge).
+ * Prompt templates for photo-based recipe ingestion (per-photo transcription).
+ * The merge phase does not need its own prompt — converting the aggregated
+ * markdown to a RecipeExtraction reuses the URL ingestion prompts
+ * (see recipe-extraction-prompt.ts).
  */
 
-/** System prompt for per-photo extraction — asks for structured JSON matching the RecipeExtraction schema. */
-export const PHOTO_EXTRACT_SYSTEM_PROMPT = [
-  "You are a recipe extraction assistant. You receive photos of recipes.",
+/** System prompt for per-photo transcription — asks for markdown, not JSON. */
+export const PHOTO_TRANSCRIBE_SYSTEM_PROMPT = [
+  "You are a recipe photo transcription assistant. You receive photos of recipes.",
   "",
   "Rules:",
-  '1. Return ONLY one valid JSON object — no markdown, no explanation text, no surrounding code fences.',
-  `2. Match the RecipeExtraction schema: fields include status, recipeName, description, prepTime, cookTime, totalTime, servings, cuisine, category, keywords, ingredients[], instructions[], notes[]`,
-  '3. Set status to "extracted" if you can identify a complete recipe with at least one ingredient AND one instruction.',
-  '4. If the photo shows only partial info (e.g., just ingredients), set status to "unusable" and explain in unusableReason what is missing.',
-  "5. Do NOT invent or guess any information. Use null for missing fields, empty arrays when no data exists.",
-  "6. For ingredients, extract quantity, unit, name, note, and originalText from the photo.",
-  "7. Instructions must be ordered with stepNumber starting at 1.",
-  `8. Include all temporal info you can see (prepTime, cookTime, totalTime in ISO 8601 format like PT30M).`,
+  "1. Transcribe ALL visible text from the photo as clean Markdown. No JSON, no commentary, no explanations.",
+  "2. Structure the text: use headings for sections (e.g. '# <title>', '## Ingredients', '## Instructions') and lists for ingredients and steps.",
+  "3. Preserve quantities, units, times and wording exactly as written in the photo.",
+  "4. Do NOT invent or guess any information that is not visible in the photo.",
+  "5. If the photo contains no readable recipe text, reply with exactly: NO READABLE TEXT",
 ].join("\n");
 
-/** System prompt for merging multiple structured extractions into one final recipe. */
-export const MERGE_SYSTEM_PROMPT = [
-  "You are a recipe merger assistant. You receive structured RecipeExtraction objects extracted from individual photos of the same recipe.",
-  "",
-  "Rules:",
-  '1. Return ONLY one valid JSON object — no markdown, no explanation text.',
-  `2. Merge all information into a single complete RecipeExtraction following this schema: status, recipeName, description, prepTime, cookTime, totalTime, servings, cuisine, category, keywords, ingredients[], instructions[], notes[]`,
-  "3. Deduplicate ingredients and instructions across fragments.",
-  "4. Preserve the most detailed version of each piece of information.",
-  '5. Set status to "extracted" when you have at least one ingredient AND one instruction in the final result.',
-  '6. Use null for any fields not provided by ANY fragment.',
-].join("\n");
+/** User message for the per-photo transcription request. */
+export const PHOTO_TRANSCRIBE_USER_TEXT =
+  "Transcribe all visible text from this recipe photo as Markdown.";

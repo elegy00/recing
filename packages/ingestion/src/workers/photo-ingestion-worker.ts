@@ -2,8 +2,10 @@
  * Photo-based recipe ingestion worker.
  * Drives each photo job through two phases, persisting before every step so a
  * crash always leaves the job in a resumable state:
- *   1. CHUNKING — extract a structured RecipeExtraction from each photo (vision LLM)
- *   2. MERGING  — merge all per-photo extractions into the final result
+ *   1. CHUNKING — transcribe the visible text of each photo into markdown (vision LLM),
+ *                 stored per chunk as an intermediate result
+ *   2. MERGING  — convert the aggregated markdown into the final RecipeExtraction
+ *                 using the same pipeline as URL ingestion
  * No SQL here — see db/photo-job-repository. No prompt/LLM details — see extraction/.
  */
 
@@ -24,7 +26,12 @@ import {
   setJobStatus,
   type PendingPhotoChunk,
 } from "../db/photo-job-repository.js";
-import { extractFromPhoto, mergeExtractedRecipes, type PhotoFragment } from "../extraction/photo-extractor.js";
+import {
+  convertMarkdownToRecipe,
+  extractMarkdownFromPhoto,
+  type PhotoMarkdownFragment,
+} from "../extraction/photo-extractor.js";
+import { handleLlmFailure } from "../extraction/llm-error-policy.js";
 import type { LlamaClientConfig } from "../llm/client.js";
 import { withRetry } from "../llm/retry.js";
 import { describeError } from "../util/error-utils.js";
@@ -93,14 +100,14 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
   }
 }
 
-/** Phase 1: extract one RecipeExtraction per photo, then hand the job over to MERGING. */
+/** Phase 1: transcribe one markdown document per photo, then hand the job over to MERGING. */
 async function runExtractionPhase(db: Pool, config: PhotoWorkerConfig, jobId: string): Promise<void> {
   await setJobStatus(db, jobId, PhotoJobStatus.CHUNKING);
 
   let pending = await fetchPendingChunks(db, jobId);
   while (pending.length > 0) {
     const chunk = pending[0];
-    console.warn(`[photo-worker] Extracting photo ${chunk.orderNum + 1}/${pending.length} for job ${jobId}`);
+    console.warn(`[photo-worker] Transcribing photo ${chunk.orderNum + 1}/${pending.length} for job ${jobId}`);
     await extractChunk(db, config, jobId, chunk);
     // Re-fetch: the processed chunk is now EXTRACTED or FAILED
     pending = await fetchPendingChunks(db, jobId);
@@ -129,49 +136,35 @@ async function extractChunk(
 
   await markChunkExtracting(db, chunk.id);
   try {
-    const extraction = await withRetry(
-      () => extractFromPhoto(config, chunk.dataUri as string),
-      { maxAttempts: MAX_ATTEMPTS, delayMs: RETRY_DELAY_MS, onFailure: logLlmAttemptFailure }
+    const markdown = await withRetry(
+      () => extractMarkdownFromPhoto(config, chunk.dataUri as string),
+      { maxAttempts: MAX_ATTEMPTS, delayMs: RETRY_DELAY_MS, onFailure: handleLlmFailure }
     );
 
-    await markChunkExtracted(db, chunk.id, JSON.stringify(extraction));
+    // Overwrites any previous intermediate result (e.g. from an earlier run)
+    await markChunkExtracted(db, chunk.id, markdown);
     await incrementCompletedChunks(db, jobId);
   } catch (error) {
-    console.warn(`[photo-worker] Failed to extract photo ${chunk.orderNum + 1}: ${describeError(error)}`);
+    console.warn(`[photo-worker] Failed to transcribe photo ${chunk.orderNum + 1}: ${describeError(error)}`);
     await markChunkFailed(db, chunk.id, describeError(error));
   }
 }
 
-/** Phase 2: merge all successful per-photo extractions into the final result. */
+/** Phase 2: convert the aggregated per-photo markdown into the final result. */
 async function runMergePhase(db: Pool, config: PhotoWorkerConfig, jobId: string): Promise<void> {
   const settled = await fetchSettledChunks(db, jobId);
-  const fragments: PhotoFragment[] = settled
-    .filter((c) => c.status === PhotoChunkStatus.EXTRACTED && c.extractedJson !== null)
-    .map((c) => ({ orderNum: c.orderNum, extraction: c.extractedJson! }));
+  const fragments: PhotoMarkdownFragment[] = settled
+    .filter((c) => c.status === PhotoChunkStatus.EXTRACTED && c.extractedMarkdown)
+    .map((c) => ({ orderNum: c.orderNum, markdown: c.extractedMarkdown! }));
 
   if (fragments.length === 0) {
-    throw new Error("No successful extractions available to merge");
+    throw new Error("No successful transcriptions available to convert");
   }
 
-  // If ALL chunks are unusable, skip merging and fail gracefully
-  if (fragments.every((f) => f.extraction.status === "unusable")) {
-    throw new Error("All photo extractions were unusable — no recipe could be extracted");
-  }
-
-  console.warn(`[photo-worker] Merging ${fragments.length} extraction(s) for job ${jobId}`);
-  const extraction = await withRetry(
-    () => mergeExtractedRecipes(config, fragments),
-    { maxAttempts: MAX_ATTEMPTS, delayMs: RETRY_DELAY_MS, onFailure: logLlmAttemptFailure }
-  );
+  console.warn(`[photo-worker] Converting ${fragments.length} photo transcription(s) for job ${jobId}`);
+  // Retries are handled inside the shared extraction pipeline (same as URL ingestion)
+  const extraction = await convertMarkdownToRecipe(config, `photo://${jobId}`, fragments);
 
   await completeJob(db, jobId, JSON.stringify(extraction));
   console.warn(`[photo-worker] Job ${jobId} completed — recipe: ${extraction.recipeName}`);
-}
-
-/** Logs a failed LLM attempt and allows the retry. */
-function logLlmAttemptFailure(error: unknown, attempt: number, maxAttempts: number): boolean {
-  if (attempt < maxAttempts) {
-    console.warn(`[photo-worker] Attempt ${attempt}/${maxAttempts} failed: ${describeError(error)}. Retrying in ${RETRY_DELAY_MS}ms...`);
-  }
-  return true;
 }
