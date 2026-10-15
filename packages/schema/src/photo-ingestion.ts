@@ -116,8 +116,8 @@ export interface PhotoChunk {
   /** FK to the photos table — worker fetches image data_uri from photos via this link. */
   photoId?: string | null;
   status: PhotoChunkStatus;
-  /** Structured RecipeExtraction from vision LLM (replaces extracted_markdown). */
-  extractedJson?: RecipeExtraction | null;
+  /** Markdown transcription of the photo — intermediate result, converted to JSON in the merge phase. */
+  extractedMarkdown?: string | null;
   error?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -130,7 +130,7 @@ export function validatePhotoChunk(raw: unknown): PhotoChunk {
     order_num: z.number().int().min(0),
     photo_id: z.string().uuid().nullish(),
     status: photoChunkStatusSchema,
-    extracted_json: z.unknown().nullable().optional(),
+    extracted_markdown: z.string().nullable().optional(),
     error: z.string().nullish(),
     created_at: z.coerce.date().optional(),
     updated_at: z.coerce.date().optional(),
@@ -147,7 +147,7 @@ export function validatePhotoChunk(raw: unknown): PhotoChunk {
     orderNum: d.order_num,
     photoId: d.photo_id ?? null,
     status: d.status as PhotoChunkStatus,
-    extractedJson: d.extracted_json as RecipeExtraction | null | undefined,
+    extractedMarkdown: d.extracted_markdown ?? null,
     error: d.error ?? null,
     createdAt: d.created_at,
     updatedAt: d.updated_at,

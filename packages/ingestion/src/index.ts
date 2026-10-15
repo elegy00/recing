@@ -1,55 +1,54 @@
 /**
  * @recing/ingestion — URL fetching, content reduction, and recipe extraction.
+ * Public API: re-exports only. Internal structure lives in the subdirectories.
  */
 
-// LLM extraction pipeline
+// ─── URL ingestion worker ────────────────────────────────────────────────────
+export type { WorkerConfig } from "./workers/url-ingestion-worker.js";
+export { runWorker } from "./workers/url-ingestion-worker.js";
+
+// ─── Photo ingestion worker ──────────────────────────────────────────────────
+export type { PhotoWorkerConfig } from "./workers/photo-ingestion-worker.js";
+export { runPhotoWorker } from "./workers/photo-ingestion-worker.js";
+
+// ─── LLM extraction (URL pipeline) ───────────────────────────────────────────
 export type {
   ExtractionConfig,
   ExtractionInput,
   LlmExtractionOutput,
-} from "./llm-extraction.js";
-export { extractRecipe, LlmExtractionError } from "./llm-extraction.js";
+} from "./extraction/types.js";
+export { LlmExtractionError } from "./extraction/types.js";
+export { extractRecipe } from "./extraction/url-extractor.js";
 
-// LLM client (thin fetch wrapper)
+// ─── LLM client (transport + request building) ───────────────────────────────
 export type {
   ChatCompletionRequest,
-  ChatCompletionResponse,
+  ChatMessage,
   LlamaClientConfig,
-} from "./llm-client.js";
-export { sendChatCompletion, buildRequest, LlmClientError } from "./llm-client.js";
+} from "./llm/client.js";
+export { buildRequest, resolveModel, sendChatCompletion, LlmClientError } from "./llm/client.js";
+export type { ChatCompletionResponse } from "./llm/response.js";
 
-// Prompt templates
+// ─── Prompt templates ────────────────────────────────────────────────────────
 export {
   PROMPT_VERSION,
   SCHEMA_VERSION,
   RECIPE_JSONLD_PATTERN,
   buildSystemPrompt,
   buildUserPrompt,
-} from "./llm-prompt.js";
+} from "./extraction/prompts/recipe-extraction-prompt.js";
 
-// Worker loop
-export type { WorkerConfig } from "./worker.js";
-export { runWorker } from "./worker.js";
+// ─── Content reduction ───────────────────────────────────────────────────────
+export type { ReducedContent } from "./content/content-reducer.js";
+export { extractTitle, reduce } from "./content/content-reducer.js";
 
-// Photo ingestion worker (separate workflow)
-export type { PhotoWorkerConfig } from "./photo-worker.js";
-export { runPhotoWorker } from "./photo-worker.js";
-
-// Content reducer
-export type { ReducedContent } from "./content-reducer.js";
-export { reduce, extractTitle } from "./content-reducer.js";
-
-// URL fetcher
-export type { RecipeFetchResult } from "./recipe-fetch-result.js";
-export { fetchUrl } from "./url-fetcher.js";
+// ─── URL fetching (SSRF-protected) ───────────────────────────────────────────
+export type { RecipeFetchResult } from "./fetch/recipe-fetch-result.js";
+export { fetchUrl } from "./fetch/url-fetcher.js";
 export {
   extractContentType,
   isAcceptedContentType,
   parseCharset,
-} from "./url-fetcher.js";
-
-// URL safety validator (SSRF protection)
-export { validateUrl, isPublicAddress } from "./url-safety-validator.js";
-
-// Fetch exceptions
-export { RecipeFetchException } from "./recipe-fetch-exception.js";
+} from "./fetch/content-type.js";
+export { isPublicAddress, validateUrl } from "./fetch/url-safety-validator.js";
+export { RecipeFetchException } from "./fetch/recipe-fetch-exception.js";
