@@ -10,6 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ImportIndexRouteImport } from './routes/import/index'
+import { Route as ImportPhotosRouteImport } from './routes/import/photos'
+import { Route as ImportQueueRouteImport } from './routes/import/queue'
 import { Route as IngestIndexRouteImport } from './routes/ingest/index'
 import { Route as RecipesIdRouteImport } from './routes/recipes/$id'
 import { Route as SubmitIndexRouteImport } from './routes/submit/index'
@@ -18,6 +21,21 @@ import { Route as UploadIndexRouteImport } from './routes/upload/index'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportIndexRoute = ImportIndexRouteImport.update({
+  id: '/import/',
+  path: '/import/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportPhotosRoute = ImportPhotosRouteImport.update({
+  id: '/import/photos',
+  path: '/import/photos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportQueueRoute = ImportQueueRouteImport.update({
+  id: '/import/queue',
+  path: '/import/queue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IngestIndexRoute = IngestIndexRouteImport.update({
@@ -43,14 +61,20 @@ const UploadIndexRoute = UploadIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/import/photos': typeof ImportPhotosRoute
+  '/import/queue': typeof ImportQueueRoute
   '/recipes/$id': typeof RecipesIdRoute
+  '/import/': typeof ImportIndexRoute
   '/ingest/': typeof IngestIndexRoute
   '/submit/': typeof SubmitIndexRoute
   '/upload/': typeof UploadIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/import/photos': typeof ImportPhotosRoute
+  '/import/queue': typeof ImportQueueRoute
   '/recipes/$id': typeof RecipesIdRoute
+  '/import': typeof ImportIndexRoute
   '/ingest': typeof IngestIndexRoute
   '/submit': typeof SubmitIndexRoute
   '/upload': typeof UploadIndexRoute
@@ -58,22 +82,53 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/import/photos': typeof ImportPhotosRoute
+  '/import/queue': typeof ImportQueueRoute
   '/recipes/$id': typeof RecipesIdRoute
+  '/import/': typeof ImportIndexRoute
   '/ingest/': typeof IngestIndexRoute
   '/submit/': typeof SubmitIndexRoute
   '/upload/': typeof UploadIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/recipes/$id' | '/ingest/' | '/submit/' | '/upload/'
+  fullPaths:
+    | '/'
+    | '/import/photos'
+    | '/import/queue'
+    | '/recipes/$id'
+    | '/import/'
+    | '/ingest/'
+    | '/submit/'
+    | '/upload/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/recipes/$id' | '/ingest' | '/submit' | '/upload'
-  id: '__root__' | '/' | '/recipes/$id' | '/ingest/' | '/submit/' | '/upload/'
+  to:
+    | '/'
+    | '/import/photos'
+    | '/import/queue'
+    | '/recipes/$id'
+    | '/import'
+    | '/ingest'
+    | '/submit'
+    | '/upload'
+  id:
+    | '__root__'
+    | '/'
+    | '/import/photos'
+    | '/import/queue'
+    | '/recipes/$id'
+    | '/import/'
+    | '/ingest/'
+    | '/submit/'
+    | '/upload/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ImportPhotosRoute: typeof ImportPhotosRoute
+  ImportQueueRoute: typeof ImportQueueRoute
   RecipesIdRoute: typeof RecipesIdRoute
+  ImportIndexRoute: typeof ImportIndexRoute
   IngestIndexRoute: typeof IngestIndexRoute
   SubmitIndexRoute: typeof SubmitIndexRoute
   UploadIndexRoute: typeof UploadIndexRoute
@@ -86,6 +141,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import/': {
+      id: '/import/'
+      path: '/import'
+      fullPath: '/import/'
+      preLoaderRoute: typeof ImportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import/photos': {
+      id: '/import/photos'
+      path: '/import/photos'
+      fullPath: '/import/photos'
+      preLoaderRoute: typeof ImportPhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import/queue': {
+      id: '/import/queue'
+      path: '/import/queue'
+      fullPath: '/import/queue'
+      preLoaderRoute: typeof ImportQueueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ingest/': {
@@ -121,7 +197,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ImportPhotosRoute: ImportPhotosRoute,
+  ImportQueueRoute: ImportQueueRoute,
   RecipesIdRoute: RecipesIdRoute,
+  ImportIndexRoute: ImportIndexRoute,
   IngestIndexRoute: IngestIndexRoute,
   SubmitIndexRoute: SubmitIndexRoute,
   UploadIndexRoute: UploadIndexRoute,

@@ -12,7 +12,7 @@ export function Header({ links }: Props) {
 			<nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
 				<Link
 					to="/"
-					className="flex items-center gap-2.5 font-serif text-2xl font-semibold tracking-tight text-[var(--text-primary)]"
+					className="flex shrink-0 items-center gap-2.5 whitespace-nowrap font-serif text-2xl font-semibold tracking-tight text-[var(--text-primary)]"
 				>
 					<OliveSprig className="h-5 w-9 shrink-0 text-[var(--olive)]" />
 					Recing

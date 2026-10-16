@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { submitRecipe } from "../api/recipes";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
+import { ImportTabs } from "../components/molecules/import-tabs/ImportTabs";
 import { SubmitForm } from "../components/organisms/submit-form/SubmitForm";
 
 type Status = "idle" | "submitting" | "submitted" | "error";
@@ -32,6 +33,7 @@ export default function SubmitPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
+			<ImportTabs />
 			<PageHeader
 				title={t("submit_title")}
 				subtitle={t("submit_description")}

@@ -1,9 +1,12 @@
 export default {
 	// ── Header ────────────────────────────────────────────────
-	nav_submit: "Einreichen",
 	nav_recipes: "Rezepte",
-	nav_ingest: "Verarbeitung",
-	nav_photo_upload: "Foto-Upload",
+	nav_import: "Import",
+
+	// ── Import section (second-level tabs) ──────────────────────────────
+	import_tab_url: "URL",
+	import_tab_photos: "Fotos",
+	import_tab_queue: "Warteschlange",
 
 	// ── Footer ────────────────────────────────────────────────
 	footer_terms: "AGB",

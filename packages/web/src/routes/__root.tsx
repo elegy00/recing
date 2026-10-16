@@ -43,9 +43,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<Header
 					links={[
 						{ to: "/", label: t("nav_recipes") },
-						{ to: "/ingest", label: t("nav_ingest") },
-						{ to: "/upload", label: t("nav_photo_upload") },
-						{ to: "/submit", label: t("nav_submit") },
+						{ to: "/import", label: t("nav_import") },
 					]}
 				/>
 				{children}

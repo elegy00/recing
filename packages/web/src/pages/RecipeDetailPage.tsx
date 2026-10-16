@@ -92,7 +92,7 @@ export default function RecipeDetailPage() {
 	async function onConfirmReset() {
 		try {
 			await retryRecipe({ data: { id } });
-			navigate({ to: "/ingest" });
+			navigate({ to: "/import/queue" });
 		} catch {
 			setConfirmAction(null);
 		}

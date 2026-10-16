@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { submitPhotoJob } from "../api/photo-jobs";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
+import { ImportTabs } from "../components/molecules/import-tabs/ImportTabs";
 import { PhotoUpload } from "../components/organisms/photo-upload/PhotoUpload";
 
 type Status = "idle" | "submitting" | "submitted" | "error";
@@ -75,7 +76,7 @@ export default function PhotoUploadPage() {
 				data: { photos: photos.map((p) => ({ dataUri: p.dataUri })) },
 			});
 			setStatus("submitted");
-			setTimeout(() => navigate({ to: "/ingest" }), 1000);
+			setTimeout(() => navigate({ to: "/import/queue" }), 1000);
 		} catch (err) {
 			setStatus("error");
 			setErrorMsg(err instanceof Error ? err.message : "Submission failed");
@@ -86,6 +87,7 @@ export default function PhotoUploadPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
+			<ImportTabs />
 			<PageHeader
 				title={t("photo_upload_title")}
 				subtitle={t("photo_upload_description")}

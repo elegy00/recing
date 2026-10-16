@@ -1,4 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import SubmitPage from "../../pages/SubmitPage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/submit/")({ component: SubmitPage });
+/** Legacy route — moved to /import. */
+export const Route = createFileRoute("/submit/")({
+	beforeLoad: () => {
+		throw redirect({ to: "/import" });
+	},
+});
