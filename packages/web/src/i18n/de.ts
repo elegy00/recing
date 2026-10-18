@@ -15,7 +15,7 @@ export default {
 	// ── SubmitPage ────────────────────────────────────────────
 	submit_title: "Rezept-URL einreichen",
 	submit_description:
-		"Füge die URL eines Rezeits ein und wir extrahieren alle Details mit unserem lokalen KI-Modell.",
+		"Füge die URL eines Rezepts ein und wir extrahieren alle Details mit unserem lokalen KI-Modell.",
 	submit_placeholder: "https://beispiel.de/schokoladenkuchen",
 	submit_button: "Einreichen →",
 	submit_status_idle: "Status: Bereit — füge oben eine URL ein, um zu beginnen",
@@ -41,7 +41,8 @@ export default {
 	detail_prep: "Vorbereitung",
 	detail_cook: "Kochen",
 	detail_total: "Gesamt",
-	detail_servings: "Portionen",
+	detail_added: "Hinzugefügt",
+	detail_source: "Quelle",
 	detail_ingredients: "Zutaten",
 	detail_instructions: "Anleitung",
 	detail_reprocess: "Rezept erneut verarbeiten",
@@ -80,7 +81,6 @@ export default {
 	ingest_pending: "Ausstehend",
 	ingest_processing: "In Verarbeitung…",
 	ingest_failed: "Fehlgeschlagen",
-	ingest_now: "Gerade eben",
 
 	// ── PhotoUploadPage ───────────────────────────────────────
 	photo_upload_title: "Rezept vom Foto einreichen",
@@ -88,6 +88,7 @@ export default {
 		"Füge 1 oder mehr Fotos von Rezepten ein. Unser KI-Modell extrahiert automatisch alle Zutaten, Anleitungen und Details.",
 	photo_count_one: "1 Foto ausgewählt",
 	photo_count_other: "{count} Fotos ausgewählt",
+	photo_add: "Foto hinzufügen",
 	photo_remove: "Foto entfernen",
 	photo_submit: "Einreichen →",
 	photo_submitted: "✓ Wird verarbeitet! Weiterleitung …",

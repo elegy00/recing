@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { formatDuration } from "../../../utils/formatTime";
+import { timeAgo } from "../../../utils/timeAgo";
 import type { RecipeIngredient, RecipeStep } from "../../../types";
 import { OutlineButton } from "../../atoms/button/OutlineButton";
 import { PrimaryButton } from "../../atoms/button/PrimaryButton";
@@ -13,6 +14,10 @@ interface Props {
 	cookTime?: string;
 	totalTime?: string;
 	servings?: number | string;
+	/** ISO timestamp of the ingestion job; shown in the footer. */
+	createdAt?: string;
+	/** Original source URL (http(s) only); rendered as a link. */
+	sourceUrl?: string;
 	ingredients: RecipeIngredient[];
 	instructions: RecipeStep[];
 	onStartCooking: () => void;
@@ -31,6 +36,8 @@ export function RecipeDetail({
 	cookTime,
 	totalTime,
 	servings,
+	createdAt,
+	sourceUrl,
 	ingredients,
 	instructions,
 	onStartCooking,
@@ -57,6 +64,16 @@ export function RecipeDetail({
 							{description}
 						</p>
 					)}
+					{sourceUrl && sourceUrl.startsWith("http") && (
+						<a
+							href={sourceUrl}
+							target="_blank"
+							rel="noreferrer"
+							className="mt-2 inline-block text-sm text-[var(--accent)] underline underline-offset-2 transition-colors hover:text-[var(--accent-deep)]"
+						>
+							{t("detail_source")}
+						</a>
+					)}
 				</div>
 				<PrimaryButton onClick={onStartCooking}>
 					{t("detail_start_cooking")}
@@ -81,11 +98,7 @@ export function RecipeDetail({
 							{t("detail_total")}: {formatDuration(totalTime)}
 						</Chip>
 					)}
-					{servings && (
-						<Chip>
-							{t("detail_servings")}: {servings}
-						</Chip>
-					)}
+					{servings && <Chip>{servings}</Chip>}
 				</div>
 			)}
 
@@ -112,7 +125,7 @@ export function RecipeDetail({
 						{step.text}
 						{step.timer && (
 							<span className="ml-2 inline-block rounded-full bg-[var(--olive-soft)] px-3 py-0.5 text-sm font-medium tabular-nums text-[var(--olive-deep)]">
-								⏱ {step.timer}
+								⏱ {formatDuration(step.timer)}
 							</span>
 						)}
 					</li>
@@ -120,11 +133,13 @@ export function RecipeDetail({
 			</ol>
 
 			{/* Footer date */}
-			<div className="mt-10 border-t border-[var(--border)] pt-5">
-				<p className="text-sm text-[var(--text-secondary)]">
-					{new Date().toLocaleDateString()}
-				</p>
-			</div>
+			{createdAt && (
+				<div className="mt-10 border-t border-[var(--border)] pt-5">
+					<p className="text-sm text-[var(--text-secondary)]">
+						{t("detail_added")}: {timeAgo(createdAt)}
+					</p>
+				</div>
+			)}
 
 			{/* Action buttons */}
 			{showActions && (

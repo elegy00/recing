@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 interface Props {
 	photos: PhotoItem[];
 	onAddClick: () => void;
+	onFiles: (files: FileList | null) => void;
 	onRemoveClick: (id: string) => void;
 	disabledSubmit: boolean;
 	onSubmit: () => void;
@@ -18,6 +19,7 @@ interface Props {
 export function PhotoUpload({
 	photos,
 	onAddClick,
+	onFiles,
 	onRemoveClick,
 	disabledSubmit,
 	onSubmit,
@@ -39,9 +41,15 @@ export function PhotoUpload({
 				<button
 					type="button"
 					onClick={onAddClick}
-					className="flex h-36 w-36 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-[var(--border)] text-4xl font-light text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] sm:h-40 sm:w-40"
+					onDragOver={(e) => e.preventDefault()}
+					onDrop={(e) => {
+						e.preventDefault();
+						onFiles(e.dataTransfer.files);
+					}}
+					className="flex h-36 w-36 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[var(--border)] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] sm:h-40 sm:w-40"
 				>
-					+
+					<span className="text-4xl font-light">+</span>
+					<span className="px-2 text-center text-sm">{t("photo_add")}</span>
 				</button>
 			</div>
 

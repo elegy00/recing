@@ -157,6 +157,8 @@ export default function RecipeDetailPage() {
 				cookTime={job.result.cookTime ?? undefined}
 				totalTime={job.result.totalTime ?? undefined}
 				servings={job.result.servings ?? undefined}
+				createdAt={job.createdAt}
+				sourceUrl={job.result.sourceUrl ?? undefined}
 				ingredients={ingredients}
 				instructions={instructions}
 				onStartCooking={startCooking}

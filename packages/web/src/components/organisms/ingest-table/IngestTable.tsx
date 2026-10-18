@@ -74,17 +74,23 @@ function IngestRowCard({
 	displayName,
 	status,
 	timeLabel,
+	error,
 	isRetrying,
 	onRetry,
 }: IngestRow & { isRetrying: boolean; onRetry: () => void }) {
 	const { t } = useTranslation();
 	return (
 		<tr className="border-b border-[var(--border)] transition-colors last:border-b-0 hover:bg-[var(--accent-soft)]/40">
-			<td className="max-w-xs truncate px-5 py-3.5 text-[var(--text-primary)]">
-				{source === "photo" && (
-					<span className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--fig)]" />
+			<td className="max-w-xs px-5 py-3.5 align-top text-[var(--text-primary)]">
+				<p className="truncate">
+					{source === "photo" && (
+						<span className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--fig)]" />
+					)}
+					{displayName}
+				</p>
+				{error && (
+					<p className="mt-0.5 truncate text-xs text-[#8c3a2b]">{error}</p>
 				)}
-				{displayName}
 			</td>
 			<td className="px-5 py-3.5">
 				<StatusBadge status={status} />
@@ -126,6 +132,9 @@ function IngestCardMobile({
 				</p>
 				<StatusBadge status={row.status} />
 			</div>
+			{row.error && (
+				<p className="mt-1 break-all text-xs text-[#8c3a2b]">{row.error}</p>
+			)}
 			<div className="mt-3 flex items-center justify-between gap-3">
 				<p className="tabular-nums text-sm text-[var(--text-secondary)]">
 					{t("ingest_submitted")}: {row.timeLabel}

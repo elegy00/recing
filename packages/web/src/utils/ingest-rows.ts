@@ -15,6 +15,8 @@ export interface IngestRow {
 	/** ISO timestamp; used for ordering. */
 	createdAt: string;
 	timeLabel: string;
+	/** Error message for FAILED rows, when the worker reported one. */
+	error?: string;
 }
 
 export function statusOf(job: {
@@ -35,6 +37,7 @@ export function toUrlEntry(job: Job): IngestRow {
 		status: statusOf(job),
 		createdAt: job.createdAt,
 		timeLabel: timeAgo(job.createdAt),
+		error: job.error ?? undefined,
 	};
 }
 
@@ -46,5 +49,6 @@ export function toPhotoEntry(job: PhotoJob): IngestRow {
 		status: statusOf(job),
 		createdAt: job.createdAt,
 		timeLabel: timeAgo(job.createdAt),
+		error: job.error ?? undefined,
 	};
 }

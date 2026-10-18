@@ -95,6 +95,7 @@ export default function PhotoUploadPage() {
 			<PhotoUpload
 				photos={photoItems}
 				onAddClick={() => fileInputRef.current?.click()}
+				onFiles={handleFiles}
 				onRemoveClick={removePhoto}
 				disabledSubmit={status === "submitting"}
 				onSubmit={handleSubmit}
