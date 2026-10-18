@@ -24,6 +24,11 @@ function fileToDataUrl(file: File): Promise<string> {
 	});
 }
 
+let idCounter = 0;
+function nextId() {
+	return `photo-${++idCounter}`;
+}
+
 export default function PhotoUploadPage() {
 	const { t } = useTranslation();
 	const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -50,7 +55,7 @@ export default function PhotoUploadPage() {
 		try {
 			const items = await Promise.all(
 				Array.from(files).map(async (file) => ({
-					id: crypto.randomUUID(),
+					id: nextId(),
 					dataUri: await fileToDataUrl(file),
 					previewUrl: URL.createObjectURL(file),
 				})),
