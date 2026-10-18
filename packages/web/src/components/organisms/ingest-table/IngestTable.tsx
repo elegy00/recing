@@ -12,37 +12,60 @@ interface Props {
 }
 
 export function IngestTable({ rows, retryingIds, onRetry }: Props) {
-	const { t } = useTranslation();
-
 	if (rows.length === 0) return <EmptyState />;
 
 	return (
-		<div className="card overflow-hidden">
-			<table className="w-full text-base">
-				<thead className="bg-[var(--olive-soft)]/60">
-					<tr className="border-b border-[var(--border)] text-left text-sm uppercase tracking-wider text-[var(--text-secondary)]">
-						<th className="px-5 py-3.5 font-medium">{t("ingest_url")}</th>
-						<th className="w-48 px-5 py-3.5 font-medium">
-							{t("ingest_status")}
-						</th>
-						<th className="px-6 py-3.5 text-right">{t("ingest_submitted")}</th>
-						<th className="px-5 py-3.5 text-right">
-							{t("ingest_actions")}
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					{rows.map((row) => (
-						<IngestRowCard
-							key={row._id}
-							{...row}
-							isRetrying={retryingIds.has(row._id)}
-							onRetry={() => onRetry(row)}
-						/>
-					))}
-				</tbody>
-			</table>
-		</div>
+		<>
+			{/* Desktop: table */}
+			<div className="card hidden overflow-hidden sm:block">
+				<IngestTableDesktop
+					rows={rows}
+					retryingIds={retryingIds}
+					onRetry={onRetry}
+				/>
+			</div>
+			{/* Mobile: stacked cards (the table overflows at phone width) */}
+			<ul className="space-y-3 sm:hidden">
+				{rows.map((row) => (
+					<IngestCardMobile
+						key={row._id}
+						row={row}
+						isRetrying={retryingIds.has(row._id)}
+						onRetry={() => onRetry(row)}
+					/>
+				))}
+			</ul>
+		</>
+	);
+}
+
+function IngestTableDesktop({ rows, retryingIds, onRetry }: Props) {
+	const { t } = useTranslation();
+	return (
+		<table className="w-full text-base">
+			<thead className="bg-[var(--olive-soft)]/60">
+				<tr className="border-b border-[var(--border)] text-left text-sm uppercase tracking-wider text-[var(--text-secondary)]">
+					<th className="px-5 py-3.5 font-medium">{t("ingest_url")}</th>
+					<th className="w-48 px-5 py-3.5 font-medium">
+						{t("ingest_status")}
+					</th>
+					<th className="px-6 py-3.5 text-right">
+						{t("ingest_submitted")}
+					</th>
+					<th className="px-5 py-3.5 text-right">{t("ingest_actions")}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{rows.map((row) => (
+					<IngestRowCard
+						key={row._id}
+						{...row}
+						isRetrying={retryingIds.has(row._id)}
+						onRetry={() => onRetry(row)}
+					/>
+				))}
+			</tbody>
+		</table>
 	);
 }
 
@@ -79,6 +102,44 @@ function IngestRowCard({
 				)}
 			</td>
 		</tr>
+	);
+}
+
+function IngestCardMobile({
+	row,
+	isRetrying,
+	onRetry,
+}: {
+	row: IngestRow;
+	isRetrying: boolean;
+	onRetry: () => void;
+}) {
+	const { t } = useTranslation();
+	return (
+		<li className="card p-4">
+			<div className="flex items-start justify-between gap-3">
+				<p className="min-w-0 break-all text-base text-[var(--text-primary)]">
+					{row.source === "photo" && (
+						<span className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--fig)]" />
+					)}
+					{row.displayName}
+				</p>
+				<StatusBadge status={row.status} />
+			</div>
+			<div className="mt-3 flex items-center justify-between gap-3">
+				<p className="tabular-nums text-sm text-[var(--text-secondary)]">
+					{t("ingest_submitted")}: {row.timeLabel}
+				</p>
+				{row.status === "FAILED" && (
+					<RetryButton
+						label={t("ingest_retry")}
+						loading={isRetrying}
+						onClick={onRetry}
+					/>
+				)
+			}
+			</div>
+		</li>
 	);
 }
 
