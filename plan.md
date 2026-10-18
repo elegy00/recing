@@ -9,6 +9,18 @@ Severity  P0 = broken / unusable      P1 = misleading / unreadable
           P2 = structural             P3 = polish
 ```
 
+## Status: DONE (branch `optimize-ui-workflows`)
+
+| Step | Items | Commit |
+|------|-------|--------|
+| Nav restructure + mobile header | P0-1, P2-6 | `c67a1ab` |
+| Ingest table → cards on mobile | P0-2 | `63b62e2` |
+| Time & status readability | P1-3, P1-4, P1-5 (+ formatDuration off-by-one fix) | `63b5eb3` |
+| Polish sweep | P3 7–13 | `1c2680e` |
+
+Notes: routes use English slugs (`/import`, `/import/photos`, `/import/queue`); German
+labels only. Old routes redirect. 32 unit tests green, tsc + biome clean.
+
 ## P0 — Mobile is currently broken (fix first)
 
 ### 1. Header navigation collapses at phone width
