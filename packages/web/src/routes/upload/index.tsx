@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import PhotoUploadPage from "../../pages/PhotoUploadPage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+/** Legacy route — moved to /import/photos. */
 export const Route = createFileRoute("/upload/")({
-	component: PhotoUploadPage,
+	beforeLoad: () => {
+		throw redirect({ to: "/import/photos" });
+	},
 });

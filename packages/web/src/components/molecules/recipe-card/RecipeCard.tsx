@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { Job } from "../../../types";
 import { Chip } from "../../atoms/chip/Chip";
+import { formatDuration } from "../../../utils/formatTime";
 
 interface Props {
 	job: Job;
@@ -18,10 +19,10 @@ export function RecipeCard({ job }: Props) {
 		>
 			{(ext.prepTime || ext.cookTime || ext.totalTime) && (
 				<div className="mb-4 flex flex-wrap gap-2">
-					{ext.prepTime && <Chip>{ext.prepTime}</Chip>}
-					{ext.cookTime && <Chip>{ext.cookTime}</Chip>}
+					{ext.prepTime && <Chip>{formatDuration(ext.prepTime)}</Chip>}
+					{ext.cookTime && <Chip>{formatDuration(ext.cookTime)}</Chip>}
 					{ext.totalTime && !ext.prepTime && !ext.cookTime && (
-						<Chip>{ext.totalTime}</Chip>
+						<Chip>{formatDuration(ext.totalTime)}</Chip>
 					)}
 				</div>
 			)}

@@ -1,4 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import IngestPage from "../../pages/IngestPage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/ingest/")({ component: IngestPage });
+/** Legacy route — moved to /import/queue. */
+export const Route = createFileRoute("/ingest/")({
+	beforeLoad: () => {
+		throw redirect({ to: "/import/queue" });
+	},
+});

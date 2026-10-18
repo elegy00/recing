@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listPhotoJobs, retryPhotoJob } from "../api/photo-jobs";
 import { listRecipes, retryRecipe } from "../api/recipes";
 import { Spinner } from "../components/atoms/spinner/Spinner";
+import { ImportTabs } from "../components/molecules/import-tabs/ImportTabs";
 import {
 	IngestTable,
 } from "../components/organisms/ingest-table/IngestTable";
@@ -85,6 +86,7 @@ export default function IngestPage() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-6 py-12">
+			<ImportTabs />
 			<PageHeader
 				title={t("ingest_title")}
 				subtitle={t("ingest_job_count", { count: entries.length })}

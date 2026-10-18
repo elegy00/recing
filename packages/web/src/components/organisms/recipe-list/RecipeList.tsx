@@ -53,7 +53,7 @@ function EmptyState() {
 			<p className="max-w-md text-lg leading-relaxed text-[var(--text-secondary)]">
 				{t("recipes_empty")}
 			</p>
-			<Link to="/submit" className="btn-primary mt-2">
+			<Link to="/import" className="btn-primary mt-2">
 				{t("recipes_empty_cta")}
 			</Link>
 		</div>

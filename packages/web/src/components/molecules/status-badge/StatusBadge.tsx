@@ -1,8 +1,17 @@
+import { useTranslation } from "react-i18next";
+
 interface Props {
 	status: "PENDING" | "PROCESSING" | "FAILED";
 }
 
+const LABEL_KEYS = {
+	PENDING: "ingest_pending",
+	PROCESSING: "ingest_processing",
+	FAILED: "ingest_failed",
+} as const;
+
 export function StatusBadge({ status }: Props) {
+	const { t } = useTranslation();
 	const map = {
 		PENDING: "bg-[var(--accent-soft)] text-[var(--accent-deep)]",
 		PROCESSING: "bg-[var(--olive-soft)] text-[var(--olive-deep)]",
@@ -16,7 +25,7 @@ export function StatusBadge({ status }: Props) {
 			{(status === "PENDING" || status === "PROCESSING") && (
 				<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
 			)}
-			{status}
+			{t(LABEL_KEYS[status])}
 		</span>
 	);
 }

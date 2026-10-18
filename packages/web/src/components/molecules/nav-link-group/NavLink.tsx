@@ -9,11 +9,14 @@ interface Props {
 export function NavLink({ to, label, className }: Props) {
 	const location = useLocation();
 	const isActive =
-		(to === "/" && location.pathname === "/") || location.pathname === to;
+		to === "/"
+			? location.pathname === "/"
+			: location.pathname === to ||
+				location.pathname.startsWith(`${to}/`);
 	return (
 		<Link
 			to={to}
-			className={`rounded-full px-3 py-1.5 text-base transition-colors duration-150 sm:px-3.5 ${
+			className={`whitespace-nowrap rounded-full px-3 py-1.5 text-base transition-colors duration-150 sm:px-3.5 ${
 				isActive
 					? "bg-[var(--accent-soft)] font-medium text-[var(--accent-deep)]"
 					: "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

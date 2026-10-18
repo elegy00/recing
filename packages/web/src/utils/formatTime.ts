@@ -1,6 +1,11 @@
 /**
- * Format ISO 8601 duration strings (e.g. "PT30M", "PT1H45M") into human-readable text.
+ * Format ISO 8601 duration strings (e.g. "PT30M", "PT1H45M") into
+ * human-readable German text (e.g. "30 min", "1 h 45 min").
  */
+
+function plural(value: string, singular: string, pluralForm: string): string {
+	return value === "1" ? singular : pluralForm;
+}
 
 export function formatDuration(isoString: string | null | undefined): string {
 	if (!isoString) return "";
@@ -8,33 +13,22 @@ export function formatDuration(isoString: string | null | undefined): string {
 	const match = isoString.match(
 		/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/,
 	);
-
 	if (!match) return isoString;
 
-	const [, years, months, weeks, days, hours, minutes] = match.slice(1);
+	const [, years, months, weeks, days, hours, minutes] = match;
 
 	const parts: string[] = [];
+	if (years) parts.push(`${years} ${plural(years, "Jahr", "Jahre")}`);
+	if (months) parts.push(`${months} ${plural(months, "Monat", "Monate")}`);
+	if (weeks) parts.push(`${weeks} ${plural(weeks, "Woche", "Wochen")}`);
+	if (days) parts.push(`${days} ${plural(days, "Tag", "Tage")}`);
 
-	const y = Number(years ?? 0);
-	if (years) parts.push(`${years} ${y === 1 ? "year" : "years"}`);
-	const mo = Number(months ?? 0);
-	if (months) parts.push(`${months} ${mo === 1 ? "month" : "months"}`);
-	const w = Number(weeks ?? 0);
-	if (weeks) parts.push(`${weeks} ${w === 1 ? "week" : "weeks"}`);
-	const d = Number(days ?? 0);
-	if (days) parts.push(`${days} ${d === 1 ? "day" : "days"}`);
+	const totalHours = Number(hours || 0) + Math.floor(Number(minutes || 0) / 60);
+	const remainingMinutes = Number(minutes || 0) % 60;
 
-	const h = Number(hours || "0");
-	const m = Number(minutes || "0");
-
-	const totalHours = h + Math.floor(m / 60);
-	const remainingMinutes = m % 60;
-
-	if (totalHours > 0) {
-		parts.push(`${totalHours}h`);
-	}
+	if (totalHours > 0) parts.push(`${totalHours} h`);
 	if (remainingMinutes > 0 || parts.length === 0) {
-		parts.push(remainingMinutes ? `${remainingMinutes}min` : "0min");
+		parts.push(`${remainingMinutes} min`);
 	}
 
 	return parts.join(" ");
