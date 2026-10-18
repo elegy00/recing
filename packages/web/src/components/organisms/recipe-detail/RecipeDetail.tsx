@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDuration } from "../../../utils/formatTime";
 import type { RecipeIngredient, RecipeStep } from "../../../types";
 import { OutlineButton } from "../../atoms/button/OutlineButton";
 import { PrimaryButton } from "../../atoms/button/PrimaryButton";
@@ -67,17 +68,17 @@ export function RecipeDetail({
 				<div className="mb-10 flex flex-wrap gap-2.5">
 					{prepTime && (
 						<Chip>
-							{t("detail_prep")}: {prepTime}
+							{t("detail_prep")}: {formatDuration(prepTime)}
 						</Chip>
 					)}
 					{cookTime && (
 						<Chip>
-							{t("detail_cook")}: {cookTime}
+							{t("detail_cook")}: {formatDuration(cookTime)}
 						</Chip>
 					)}
 					{totalTime && !prepTime && !cookTime && (
 						<Chip>
-							{t("detail_total")}: {totalTime}
+							{t("detail_total")}: {formatDuration(totalTime)}
 						</Chip>
 					)}
 					{servings && (

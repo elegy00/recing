@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDuration } from "../../../utils/formatTime";
 import type { RecipeIngredient, RecipeStep } from "../../../types";
 
 export interface CookModeProps {
@@ -68,7 +69,7 @@ export function CookMode({
 						</span>
 						{step.timer && (
 							<span className="rounded-full bg-[var(--olive-soft)] px-3.5 py-1 text-base font-medium tabular-nums text-[var(--olive-deep)]">
-								⏱ {step.timer}
+								⏱ {formatDuration(step.timer)}
 							</span>
 						)}
 					</div>

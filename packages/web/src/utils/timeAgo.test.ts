@@ -15,21 +15,33 @@ describe("timeAgo", () => {
 		vi.useRealTimers();
 	});
 
-	it("labels very recent timestamps as 'Jetzt'", () => {
-		expect(timeAgo(minutesAgo(0.5))).toBe("Jetzt");
+	it("labels very recent timestamps as 'gerade eben'", () => {
+		expect(timeAgo(minutesAgo(0.5))).toBe("gerade eben");
 	});
 
 	it("labels minutes", () => {
-		expect(timeAgo(minutesAgo(5))).toBe("5m");
+		expect(timeAgo(minutesAgo(5))).toBe("vor 5 Minuten");
 	});
 
-	it("labels hours with remaining minutes", () => {
-		expect(timeAgo(minutesAgo(2 * 60 + 30))).toBe("2h 30m");
+	it("rolls up to hours below 48h", () => {
+		expect(timeAgo(minutesAgo(2 * 60 + 30))).toBe("vor 2 Stunden");
 	});
 
-	it("treats future timestamps as 'Jetzt'", () => {
+	it("rolls up to days below 31 days", () => {
+		expect(timeAgo(minutesAgo(20 * 24 * 60))).toBe("vor 20 Tagen");
+	});
+
+	it("falls back to an absolute date for old timestamps", () => {
+		expect(timeAgo(minutesAgo(40 * 24 * 60))).toBe("23.07.2026");
+	});
+
+	it("treats future timestamps as 'gerade eben'", () => {
 		expect(timeAgo(new Date(NOW.getTime() + 60_000).toISOString())).toBe(
-			"Jetzt",
+			"gerade eben",
 		);
+	});
+
+	it("returns an empty string for invalid input", () => {
+		expect(timeAgo("not-a-date")).toBe("");
 	});
 });
