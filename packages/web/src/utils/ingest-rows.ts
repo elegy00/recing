@@ -29,7 +29,7 @@ export function statusOf(job: {
 }
 
 export function toUrlEntry(job: Job): IngestRow {
-	const url = job.url;
+	const url = job.url ?? "";
 	return {
 		_id: job._id,
 		source: "url",

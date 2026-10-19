@@ -23,8 +23,10 @@ import {
   markChunkExtracted,
   markChunkExtracting,
   markChunkFailed,
+  resetStuckChunks,
   setJobStatus,
   type PendingPhotoChunk,
+  type SettledPhotoChunk,
 } from "../db/photo-job-repository.js";
 import {
   convertMarkdownToRecipe,
@@ -101,8 +103,10 @@ async function processJob(db: Pool, config: PhotoWorkerConfig, jobId: string): P
 }
 
 /** Phase 1: transcribe one markdown document per photo, then hand the job over to MERGING. */
-async function runExtractionPhase(db: Pool, config: PhotoWorkerConfig, jobId: string): Promise<void> {
+export async function runExtractionPhase(db: Pool, config: PhotoWorkerConfig, jobId: string): Promise<void> {
   await setJobStatus(db, jobId, PhotoJobStatus.CHUNKING);
+  // A previous run may have crashed mid-extraction — make those chunks pending again.
+  await resetStuckChunks(db, jobId);
 
   let pending = await fetchPendingChunks(db, jobId);
   while (pending.length > 0) {
@@ -115,11 +119,22 @@ async function runExtractionPhase(db: Pool, config: PhotoWorkerConfig, jobId: st
 
   const settled = await fetchSettledChunks(db, jobId);
   if (settled.length > 0 && settled.every((c) => c.status === PhotoChunkStatus.FAILED)) {
-    throw new Error("All photo extractions failed");
+    throw new Error(allExtractionsFailedMessage(settled));
   }
 
   // All chunks processed — move to merging phase
   await setJobStatus(db, jobId, PhotoJobStatus.MERGING);
+}
+
+/**
+ * Builds the job-level error when every photo transcription failed.
+ * Includes each photo's own error so the user sees the real cause, not just a generic message.
+ */
+export function allExtractionsFailedMessage(settled: SettledPhotoChunk[]): string {
+  const details = settled
+    .map((c) => `Photo ${c.orderNum + 1}: ${c.error ?? "unknown error"}`)
+    .join("; ");
+  return `All photo extractions failed — ${details}`;
 }
 
 /** Extracts one chunk. A failure marks the chunk FAILED but never blocks the job. */

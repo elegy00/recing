@@ -1,3 +1,9 @@
+/**
+ * SERVER-ONLY module (imports pg).
+ * Import it only from server-function modules (api/*.ts): exported non-server-fn
+ * code in those modules survives in the client bundle and would drag pg with it.
+ */
+
 import { Pool } from "pg";
 
 let _pool: Pool | null = null;
