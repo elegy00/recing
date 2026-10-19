@@ -8,28 +8,54 @@ import { isUuid } from "../utils/uuid";
 import { getPool, toIsoString } from "./db";
 import { requireId } from "./validators";
 
-/** Map DB columns to frontend-compatible field names. */
-function mapRow(row: Record<string, unknown>): Job {
-	const dbRow = row as {
-		id: string;
-		url: string;
-		status: string;
-		created_at: Date | string;
-		updated_at: Date | string;
-		result?: RecipeResult | null;
-		error?: string | null;
-	};
+/** Shared shape of a recipe job row from either jobs or photo_jobs. */
+interface RecipeJobRow {
+	id: string;
+	status: string;
+	created_at: Date | string;
+	updated_at: Date | string;
+	result?: RecipeResult | null;
+	error?: string | null;
+}
 
+/** Map a jobs-table row to the frontend Job shape. */
+function mapRow(row: RecipeJobRow & { url: string }): Job {
 	return {
-		_id: dbRow.id,
-		url: dbRow.url,
-		status: dbRow.status as Job["status"],
-		createdAt: toIsoString(dbRow.created_at),
-		updatedAt: toIsoString(dbRow.updated_at),
-		result: (dbRow.result ?? null) as Job["result"],
-		error: dbRow.error,
+		_id: row.id,
+		url: row.url,
+		status: row.status as Job["status"],
+		createdAt: toIsoString(row.created_at),
+		updatedAt: toIsoString(row.updated_at),
+		result: (row.result ?? null) as Job["result"],
+		error: row.error,
+		source: "url",
 	};
 }
+
+// NOTE: must stay private — exported non-server-fn code in this module is kept
+// in the client bundle and would drag pg (via ./db) into the browser.
+/** Map a photo_jobs row to the frontend Job shape (photo imports have no URL). */
+function mapPhotoRowToJob(row: RecipeJobRow): Job {
+	return {
+		_id: row.id,
+		url: null,
+		status: row.status as Job["status"],
+		createdAt: toIsoString(row.created_at),
+		updatedAt: toIsoString(row.updated_at),
+		result: (row.result ?? null) as Job["result"],
+		error: row.error,
+		source: "photo",
+	};
+}
+
+/** SQL predicate for jobs holding a valid, extracted recipe (works on both job tables). */
+const VALID_RECIPE_SQL = `
+    status = 'COMPLETED'
+    AND result IS NOT NULL
+    AND (result->>'status')::text = 'extracted'
+    AND (result->>'recipeName')::text IS NOT NULL
+    AND jsonb_array_length((result->'ingredients')::jsonb) > 0
+    AND jsonb_array_length((result->'instructions')::jsonb) > 0`;
 
 /** True when the job holds a valid, extracted recipe. */
 function isValidRecipe(job: Job): boolean {
@@ -92,19 +118,25 @@ export const listRecipes = createServerFn({ method: "GET" })
 			return { recipes: res.rows.map(mapRow) };
 		}
 
-		// Default: only valid completed recipes
+		// Default: only valid completed recipes — from both URL and photo imports
 		const res = await pool.query(`
-      SELECT * FROM jobs
-      WHERE status = 'COMPLETED'
-        AND result IS NOT NULL
-        AND (result->>'status')::text = 'extracted'
-        AND (result->>'recipeName')::text IS NOT NULL
-        AND jsonb_array_length((result->'ingredients')::jsonb) > 0
-        AND jsonb_array_length((result->'instructions')::jsonb) > 0
+      SELECT 'url' AS source, id, status, result, error, created_at, updated_at
+      FROM jobs
+      WHERE ${VALID_RECIPE_SQL}
+      UNION ALL
+      SELECT 'photo' AS source, id, status, result, error, created_at, updated_at
+      FROM photo_jobs
+      WHERE ${VALID_RECIPE_SQL}
       ORDER BY created_at DESC
     `);
 
-		return { recipes: res.rows.map(mapRow) };
+		return {
+			recipes: res.rows.map((row) =>
+				(row as { source: string }).source === "photo"
+					? mapPhotoRowToJob(row)
+					: mapRow(row),
+			),
+		};
 	});
 
 // ─── GET /api/recipes/:id — Fetch a single recipe ──────────────────────────
@@ -118,18 +150,25 @@ export const getRecipe = createServerFn({ method: "GET" })
 			return { recipe: null, error: "Recipe not found" };
 		}
 
+		// URL imports first…
 		const res = await getPool().query("SELECT * FROM jobs WHERE id = $1", [id]);
-
-		if (res.rows.length === 0) {
-			return { recipe: null, error: "Recipe not found" };
+		if (res.rows.length > 0) {
+			const job = mapRow(res.rows[0]);
+			return isValidRecipe(job)
+				? { recipe: job, error: null }
+				: { recipe: null, error: "Recipe not found" };
 		}
 
-		const job = mapRow(res.rows[0]);
-		if (!isValidRecipe(job)) {
-			return { recipe: null, error: "Recipe not found" };
+		// …then photo imports.
+		const photoRes = await getPool().query("SELECT * FROM photo_jobs WHERE id = $1", [id]);
+		if (photoRes.rows.length > 0) {
+			const job = mapPhotoRowToJob(photoRes.rows[0]);
+			return isValidRecipe(job)
+				? { recipe: job, error: null }
+				: { recipe: null, error: "Recipe not found" };
 		}
 
-		return { recipe: job, error: null };
+		return { recipe: null, error: "Recipe not found" };
 	});
 
 // ─── POST /api/recipes/:id/delete — Delete a job ──────────────────────────

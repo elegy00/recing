@@ -138,3 +138,14 @@ export async function markChunkFailed(db: Pool, chunkId: string, errorMessage: s
     [chunkId, errorMessage]
   );
 }
+
+/**
+ * Resets chunks stuck in EXTRACTING (e.g. after a worker crash) back to PENDING
+ * so they are transcribed again instead of being silently skipped.
+ */
+export async function resetStuckChunks(db: Pool, jobId: string): Promise<void> {
+  await db.query(
+    "UPDATE photo_chunks SET status = 'PENDING', updated_at = NOW() WHERE job_id = $1::uuid AND status = 'EXTRACTING'",
+    [jobId]
+  );
+}

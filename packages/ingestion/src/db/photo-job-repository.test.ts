@@ -12,6 +12,7 @@ import {
   markChunkExtracted,
   markChunkExtracting,
   markChunkFailed,
+  resetStuckChunks,
   setJobStatus,
 } from "./photo-job-repository.js";
 
@@ -132,5 +133,14 @@ describe("chunk operations", () => {
     const [sql, params] = queryCalls(db)[0];
     expect(sql).toContain("UPDATE photo_chunks SET status = 'FAILED', error = $2");
     expect(params).toEqual(["chunk-1", "no image data"]);
+  });
+
+  it("resetStuckChunks reverts only EXTRACTING chunks of the job to PENDING", async () => {
+    const db = makeDb([], 1);
+    await resetStuckChunks(db, "job-1");
+    const [sql, params] = queryCalls(db)[0];
+    expect(sql).toContain("UPDATE photo_chunks SET status = 'PENDING'");
+    expect(sql).toContain("WHERE job_id = $1::uuid AND status = 'EXTRACTING'");
+    expect(params).toEqual(["job-1"]);
   });
 });

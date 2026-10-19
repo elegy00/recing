@@ -124,7 +124,7 @@ export const submitPhotoJob = createServerFn({ method: "POST" })
 		return { jobId };
 	});
 
-// ─── POST /api/photo-jobs/:id/retry — Reset FAILED job to PENDING ─────────
+// ─── POST /api/photo-jobs/:id/retry — Restart job from scratch ────────────
 
 export const retryPhotoJob = createServerFn({ method: "POST" })
 	.validator(requireId)
@@ -136,14 +136,16 @@ export const retryPhotoJob = createServerFn({ method: "POST" })
 		}
 
 		const pool = getPool();
+		// Restart from the beginning with the original photos — works from any state
+		// (failed, completed, or in flight), mirroring retryRecipe for URL imports.
 		const res = await pool.query(
 			`UPDATE photo_jobs SET status = 'PENDING', error = NULL, completed_chunks = 0, updated_at = NOW()
-			 WHERE id = $1::uuid AND status = 'FAILED'`,
+			 WHERE id = $1::uuid`,
 			[id],
 		);
 
 		if (res.rowCount === 0) {
-			return { ok: false, error: "Job not found or not in failed state" };
+			return { ok: false, error: "Job not found" };
 		}
 
 		// Restart the whole job from scratch: re-extract every photo and overwrite
@@ -156,6 +158,26 @@ export const retryPhotoJob = createServerFn({ method: "POST" })
 
 		return { ok: true, error: null };
 	});
+
+// ─── POST /api/photo-jobs/:id/delete — Delete a job with its photos ──────
+
+export const deletePhotoJob = createServerFn({ method: "POST" })
+	.validator(requireId)
+	.handler(async (ctx) => {
+		const { id } = ctx.data;
+
+		if (!isUuid(id)) {
+			return { error: "Job not found" };
+		}
+
+		// Chunks and photos are removed via ON DELETE CASCADE.
+		const res = await getPool().query("DELETE FROM photo_jobs WHERE id = $1", [id]);
+
+		if (res.rowCount === 0) {
+			return { error: "Job not found" };
+		}
+		return { ok: true, error: null };
+});
 
 // ─── GET /api/photo-jobs — List photo jobs (non-completed by default) ────
 

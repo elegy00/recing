@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { deletePhotoJob, retryPhotoJob } from "../api/photo-jobs";
 import { deleteRecipe, getRecipe, retryRecipe } from "../api/recipes";
 import { CookMode } from "../components/organisms/cook-mode/CookMode";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
@@ -83,16 +84,25 @@ export default function RecipeDetailPage() {
 
 	async function onConfirmDelete() {
 		try {
+		if (job?.source === "photo") {
+			await deletePhotoJob({ data: { id } });
+		} else {
 			await deleteRecipe({ data: { id } });
-			navigate({ to: "/", replace: true });
+		}
+		navigate({ to: "/", replace: true });
 		} catch {
 			setConfirmAction(null);
 		}
 	}
 	async function onConfirmReset() {
 		try {
+		if (job?.source === "photo") {
+			const res = await retryPhotoJob({ data: { id } });
+			if (!res.ok) throw new Error(res.error);
+		} else {
 			await retryRecipe({ data: { id } });
-			navigate({ to: "/import/queue" });
+		}
+		navigate({ to: "/import/queue" });
 		} catch {
 			setConfirmAction(null);
 		}

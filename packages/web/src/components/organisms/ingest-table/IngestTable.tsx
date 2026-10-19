@@ -89,7 +89,9 @@ function IngestRowCard({
 					{displayName}
 				</p>
 				{error && (
-					<p className="mt-0.5 truncate text-xs text-[#8c3a2b]">{error}</p>
+					<p className="mt-0.5 break-words text-xs text-[#8c3a2b]" title={error}>
+						{error}
+					</p>
 				)}
 			</td>
 			<td className="px-5 py-3.5">

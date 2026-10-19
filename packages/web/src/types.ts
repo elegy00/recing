@@ -46,12 +46,15 @@ export interface RecipeStep {
 
 export interface Job {
 	_id: string;
-	url: string;
+	/** Source URL for URL imports — null for photo imports. */
+	url: string | null;
 	status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 	createdAt: string;
 	updatedAt: string;
 	result: RecipeResult | null;
 	error?: string | null;
+	/** Which import pipeline produced this job. */
+	source?: "url" | "photo";
 }
 
 export type FilterKey =
