@@ -19,7 +19,7 @@ const config: ExtractionConfig = {
 
 function makeExtraction(name: string) {
   return JSON.stringify({
-    schemaVersion: "recipe_extraction.v1",
+    schemaVersion: "recipe_extraction.v2",
     status: "extracted" as const,
     sourceUrl: "https://example.com/pancakes",
     recipeName: name,

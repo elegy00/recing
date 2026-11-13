@@ -24,6 +24,8 @@ export interface RecipeResult {
 		stepNumber: number;
 		text: string;
 		timer?: string | null;
+		/** Separate sub-steps of this step (absent in legacy v1 extractions). */
+		substeps?: string[];
 	}>;
 	notes: string[];
 	unusableReason?: string | null;
@@ -42,6 +44,8 @@ export interface RecipeStep {
 	stepNumber: number;
 	text: string;
 	timer?: string;
+	/** Separate sub-steps, rendered as a list. Undefined when the step has none. */
+	substeps?: string[];
 }
 
 export interface Job {

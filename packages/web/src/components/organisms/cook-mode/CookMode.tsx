@@ -76,6 +76,14 @@ export function CookMode({
 					<p className="text-2xl leading-relaxed font-medium sm:text-3xl">
 						{step.text}
 					</p>
+					{step.substeps && (
+						<ul className="mt-4 list-disc space-y-2 pl-6 text-xl leading-relaxed marker:text-[var(--accent)] sm:text-2xl">
+							{step.substeps.map((sub, idx) => {
+								// biome-ignore lint/suspicious/noArrayIndexKey: static list that never reorders
+								return <li key={idx}>{sub}</li>;
+							})}
+						</ul>
+					)}
 				</div>
 			)}
 

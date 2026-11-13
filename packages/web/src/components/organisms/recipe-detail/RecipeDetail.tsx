@@ -128,6 +128,7 @@ export function RecipeDetail({
 								⏱ {formatDuration(step.timer)}
 							</span>
 						)}
+						{step.substeps && <SubstepList substeps={step.substeps} />}
 					</li>
 				))}
 			</ol>
@@ -173,6 +174,18 @@ export function RecipeDetail({
 				/>
 			)}
 		</div>
+	);
+}
+
+/** Renders the separate sub-steps of one instruction as a nested list. */
+function SubstepList({ substeps }: { substeps: string[] }) {
+	return (
+		<ul className="mt-2 list-disc space-y-1 pl-6 marker:text-[var(--accent)]">
+			{substeps.map((sub, idx) => {
+				// biome-ignore lint/suspicious/noArrayIndexKey: static list that never reorders
+				return <li key={idx}>{sub}</li>;
+			})}
+		</ul>
 	);
 }
 

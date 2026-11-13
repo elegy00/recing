@@ -2,8 +2,8 @@
  * Prompt templates for recipe extraction, ported from RecipeExtractionPrompt.java.
  */
 
-export const PROMPT_VERSION = "recipe_extraction_prompt.v1" as const;
-export const SCHEMA_VERSION = "recipe_extraction.v1" as const;
+export const PROMPT_VERSION = "recipe_extraction_prompt.v2" as const;
+export const SCHEMA_VERSION = "recipe_extraction.v2" as const;
 
 /** Regex for JSON-LD script tags to preserve during content reduction. */
 export const RECIPE_JSONLD_PATTERN =
@@ -25,6 +25,7 @@ export function buildSystemPrompt(schemaVersion: string): string {
     "5. Instructions must be ordered with stepNumber starting at 1 and incrementing by 1.",
     '6. If the page does not contain a recognizable recipe (e.g., it is a blog about cooking equipment), set status to "unusable" and explain why in unusableReason.',
     `7. For valid recipes, set status to "extracted". A valid extraction requires at least one ingredient and one instruction plus a recipeName.`,
+    '8. If an instruction contains multiple sub-steps (e.g. lettered items like \'a.\', \'b.\', \'c.\' or bullets inside one step), keep the main instruction in `text` and extract EVERY sub-step as its own separate string in `substeps`, in source order. Never merge several sub-steps into a single paragraph in `text`. Use an empty array for `substeps` when the step has no sub-steps.',
   ].join("\n");
 }
 

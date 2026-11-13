@@ -19,4 +19,12 @@ describe("buildSystemPrompt", () => {
   it("still tells the model to use null only when no amount is given", () => {
     expect(prompt).toMatch(/Use null for quantity\/unit only when the source truly gives no amount/);
   });
+
+  it("instructs the model to extract instruction sub-steps as separate list entries", () => {
+    // Regression guard: steps with multiple sub-steps must come back as individual
+    // `substeps` entries, not merged into one paragraph in `text`.
+    expect(prompt).toMatch(/extract EVERY sub-step as its own separate string in `substeps`/);
+    expect(prompt).toMatch(/Never merge several sub-steps into a single paragraph/);
+    expect(prompt).toMatch(/Use an empty array for `substeps` when the step has no sub-steps/);
+  });
 });

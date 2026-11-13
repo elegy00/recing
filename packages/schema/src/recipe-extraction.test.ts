@@ -3,7 +3,7 @@ import { parseRecipeExtraction, isValid, isUnusable, createEmptyRecipeExtraction
 
 describe("parseRecipeExtraction", () => {
   const validExtracted = {
-    schemaVersion: "recipe_extraction.v1" as const,
+    schemaVersion: "recipe_extraction.v2" as const,
     status: "extracted" as const,
     sourceUrl: "https://example.com/pancakes",
     recipeName: "Classic Pancakes",
@@ -26,7 +26,7 @@ describe("parseRecipeExtraction", () => {
   };
 
   const validUnusable: unknown = {
-    schemaVersion: "recipe_extraction.v1",
+    schemaVersion: "recipe_extraction.v2",
     status: "unusable" as const,
     sourceUrl: "https://example.com/not-a-recipe",
     recipeName: null,
@@ -50,6 +50,58 @@ describe("parseRecipeExtraction", () => {
     expect(result.recipeName).toBe("Classic Pancakes");
     expect(result.ingredients.length).toBe(1);
     expect(result.instructions.length).toBe(1);
+  });
+
+  it("parses instructions with separate, distinguishable substeps", () => {
+    const result = parseRecipeExtraction({
+      status: "extracted" as const,
+      recipeName: "Substep Recipe",
+      ingredients: [{ name: "flour", quantity: null, unit: null, originalText: "flour" }],
+      instructions: [
+        {
+          stepNumber: 1,
+          text: "Make the dough:",
+          substeps: ["Mix flour and salt.", "Add water gradually.", "Knead until smooth."],
+        },
+        { stepNumber: 2, text: "Rest the dough for 30 minutes." },
+      ],
+    });
+    // Sub-steps are kept as separate entries, in source order
+    expect(result.instructions[0].substeps).toEqual([
+      "Mix flour and salt.",
+      "Add water gradually.",
+      "Knead until smooth.",
+    ]);
+    // Steps without sub-steps default to an empty array
+    expect(result.instructions[1].substeps).toEqual([]);
+  });
+
+  it("accepts legacy v1 responses (no substeps) and stamps the current version", () => {
+    const result = parseRecipeExtraction({
+      schemaVersion: "recipe_extraction.v1",
+      status: "extracted" as const,
+      recipeName: "Legacy Recipe",
+      ingredients: [{ name: "flour", originalText: "flour" }],
+      instructions: [{ stepNumber: 1, text: "Mix everything." }],
+    });
+    expect(result.schemaVersion).toBe("recipe_extraction.v2");
+    expect(result.instructions[0].substeps).toEqual([]);
+  });
+
+  it("rejects substeps that are not arrays of non-empty strings", () => {
+    const base = {
+      status: "extracted" as const,
+      recipeName: "Bad Substeps",
+      ingredients: [{ name: "x", originalText: "x" }],
+    };
+    // Empty-string entry
+    expect(() =>
+      parseRecipeExtraction({ ...base, instructions: [{ stepNumber: 1, text: "t", substeps: ["ok", ""] }] })
+    ).toThrow();
+    // Wrong type
+    expect(() =>
+      parseRecipeExtraction({ ...base, instructions: [{ stepNumber: 1, text: "t", substeps: 42 }] })
+    ).toThrow();
   });
 
   it("parses a valid unusable extraction", () => {
@@ -135,7 +187,7 @@ describe("parseRecipeExtraction", () => {
       instructions: [{ stepNumber: 1, text: "y", timer: null }],
     };
     const result = parseRecipeExtraction(minimal);
-    expect(result.schemaVersion).toBe("recipe_extraction.v1");
+    expect(result.schemaVersion).toBe("recipe_extraction.v2");
     expect(result.sourceUrl.startsWith("recipe:")).toBe(true);
     expect(result.notes).toEqual([]);
   });
@@ -161,7 +213,7 @@ describe("parseRecipeExtraction", () => {
 
   it("transforms undefined to null for nullable fields", () => {
     const minimal = {
-      schemaVersion: "recipe_extraction.v1" as const,
+      schemaVersion: "recipe_extraction.v2" as const,
       status: "unusable" as const,
       sourceUrl: "https://x.com",
       recipeName: undefined as unknown as string | null,
@@ -201,7 +253,7 @@ describe("parseRecipeExtraction", () => {
 describe("isValid", () => {
   it("returns true for valid extracted recipe", () => {
     const extraction = parseRecipeExtraction({
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "extracted" as const,
       sourceUrl: "https://example.com/recipe",
       recipeName: "Test Recipe",
@@ -217,7 +269,7 @@ describe("isValid", () => {
 
   it("returns false for unusable extraction", () => {
     const extraction = parseRecipeExtraction({
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "unusable" as const,
       sourceUrl: "https://example.com/other",
       recipeName: null, description: null, prepTime: null, cookTime: null, totalTime: null,
@@ -230,7 +282,7 @@ describe("isValid", () => {
   it("returns false when ingredients are empty but status is extracted", () => {
     // parseRecipeExtraction throws for this case, so we test isValid on a valid extraction
     const good = parseRecipeExtraction({
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "extracted" as const,
       sourceUrl: "https://example.com/valid",
       recipeName: "Valid", description: null, prepTime: null, cookTime: null, totalTime: null,
@@ -248,7 +300,7 @@ describe("isValid", () => {
 describe("isUnusable", () => {
   it("returns true for unusable status", () => {
     const extraction = parseRecipeExtraction({
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "unusable" as const,
       sourceUrl: "https://example.com/other",
       recipeName: null, description: null, prepTime: null, cookTime: null, totalTime: null,
@@ -260,7 +312,7 @@ describe("isUnusable", () => {
 
   it("returns false for extracted status", () => {
     const extraction = parseRecipeExtraction({
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "extracted" as const,
       sourceUrl: "https://example.com/recipe",
       recipeName: "Test", description: null, prepTime: null, cookTime: null, totalTime: null,
@@ -285,6 +337,6 @@ describe("createEmptyRecipeExtraction", () => {
 
   it("has correct schemaVersion", () => {
     const empty = createEmptyRecipeExtraction();
-    expect(empty.schemaVersion).toBe("recipe_extraction.v1");
+    expect(empty.schemaVersion).toBe("recipe_extraction.v2");
   });
 });
