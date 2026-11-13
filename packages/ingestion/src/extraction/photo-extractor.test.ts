@@ -86,7 +86,7 @@ describe("convertMarkdownToRecipe", () => {
   it("feeds the aggregated markdown into the shared extraction pipeline", async () => {
     const extraction: RecipeExtraction = JSON.parse(
       JSON.stringify({
-        schemaVersion: "recipe_extraction.v1",
+        schemaVersion: "recipe_extraction.v2",
         status: "extracted",
         recipeName: "Pancakes",
         ingredients: [],

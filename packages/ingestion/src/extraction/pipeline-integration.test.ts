@@ -86,7 +86,7 @@ describe("Full extraction pipeline integration", () => {
 
   it("fetches content → reduces → sends to LLM → parses result", async () => {
     const expectedExtraction: RecipeExtraction = {
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "extracted",
       sourceUrl: "http://example.com/pancakes",
       recipeName: "Classic Pancakes",
@@ -100,9 +100,13 @@ describe("Full extraction pipeline integration", () => {
       servings: null, cuisine: null, category: null, keywords: null,
       unusableReason: null,
       instructions: [
-        { stepNumber: 1, text: "Mix dry ingredients together." },
-        { stepNumber: 2, text: "Add eggs and milk, stir until smooth." },
-        { stepNumber: 3, text: "Cook on a hot griddle until golden brown." },
+        { stepNumber: 1, text: "Mix dry ingredients together.", substeps: [] },
+        {
+          stepNumber: 2,
+          text: "Make the batter:",
+          substeps: ["Add eggs and milk.", "Stir until smooth."],
+        },
+        { stepNumber: 3, text: "Cook on a hot griddle until golden brown.", substeps: [] },
       ],
       notes: ["A simple recipe for fluffy pancakes."],
     };
@@ -118,18 +122,21 @@ describe("Full extraction pipeline integration", () => {
 
     const result = await extractRecipe(mockConfig(), input);
 
-    expect(result.extraction.schemaVersion).toBe("recipe_extraction.v1");
+    expect(result.extraction.schemaVersion).toBe("recipe_extraction.v2");
     expect(result.extraction.status).toBe("extracted");
     expect(result.extraction.recipeName).toBe("Classic Pancakes");
     expect(result.extraction.ingredients.length).toBe(4);
     expect(result.extraction.instructions.length).toBe(3);
+    // Sub-steps survive the full pipeline as separate entries
+    expect(result.extraction.instructions[1].substeps).toEqual(["Add eggs and milk.", "Stir until smooth."]);
+    expect(result.extraction.instructions[0].substeps).toEqual([]);
 
     expect(result.metadata.modelEndpoint).toBe("http://localhost:8085/v1/chat/completions");
     expect(result.metadata.model).toBe("qwen3.6");
     // durationMs is 0+ with mocks (no real network latency) — just verify it's non-negative
     expect(result.metadata.durationMs >= 0).toBe(true);
     expect(result.metadata.promptVersion).toBeTruthy();
-    expect(result.metadata.schemaVersion).toBe("recipe_extraction.v1");
+    expect(result.metadata.schemaVersion).toBe("recipe_extraction.v2");
     expect(result.metadata.requestContentChars).toBeGreaterThan(0);
   });
 
@@ -155,12 +162,12 @@ describe("Full extraction pipeline integration", () => {
 
   it("retries once on bad LLM JSON response", async () => {
     const goodExtraction: RecipeExtraction = {
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "extracted",
       sourceUrl: "http://example.com/test",
       recipeName: "Retry Test",
       ingredients: [{ name: "flour", quantity: "1", unit: "cup", note: "", originalText: "1 cup" }],
-      instructions: [{ stepNumber: 1, text: "Do it." }],
+      instructions: [{ stepNumber: 1, text: "Do it.", substeps: [] }],
       notes: [],
       description: null, prepTime: null, cookTime: null, totalTime: null,
       servings: null, cuisine: null, category: null, keywords: null,
@@ -199,12 +206,12 @@ describe("Full extraction pipeline integration", () => {
 
   it("passes correct request to LLM with reduced content", async () => {
     const expectedExtraction: RecipeExtraction = {
-      schemaVersion: "recipe_extraction.v1",
+      schemaVersion: "recipe_extraction.v2",
       status: "extracted",
       sourceUrl: "http://example.com/test",
       recipeName: "Test",
       ingredients: [{ name: "flour", quantity: "1", unit: "cup", note: "", originalText: "1 cup" }],
-      instructions: [{ stepNumber: 1, text: "Mix." }],
+      instructions: [{ stepNumber: 1, text: "Mix.", substeps: [] }],
       notes: [],
       description: null, prepTime: null, cookTime: null, totalTime: null,
       servings: null, cuisine: null, category: null, keywords: null,

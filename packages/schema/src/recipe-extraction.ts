@@ -45,6 +45,13 @@ const instructionSchema = z.object({
   stepNumber: z.number().int().min(1),
   text: z.string().min(1),
   timer: nullString(z.string()),
+  substeps: z
+    .array(z.string().min(1))
+    .optional()
+    .default([])
+    .describe(
+      "Ordered sub-steps of this instruction. Each entry is one separate, distinguishable sub-step (e.g. 'a.', 'b.', 'c.' items from the source). Empty array when the step has no sub-steps — never merge several sub-steps into the main text."
+    ),
 });
 
 /** A single instruction step from a recipe extraction. */
@@ -52,17 +59,25 @@ export interface RecipeInstruction {
   stepNumber: number;
   text: string;
   timer?: string | null;
+  /** Separate, ordered sub-steps of this step (empty when the step has none). */
+  substeps: string[];
 }
 
 // ─── RecipeExtraction ────────────────────────────────────────────────────────
 
-const RECIPE_SCHEMA_VERSION = "recipe_extraction.v1";
+const RECIPE_SCHEMA_VERSION = "recipe_extraction.v2";
 
 /** Base schema for all recipe extractions. Fields like schemaVersion, sourceUrl,
  * and notes are optional here because the LLM (without an embedded JSON Schema)
- * may omit them. Missing values are filled in by parseRecipeExtraction(). */
+ * may omit them. Missing values are filled in by parseRecipeExtraction().
+ *
+ * Both v1 and v2 responses are accepted as input (v1 predates `substeps`);
+ * parseRecipeExtraction() always stamps the current version on output. */
 export const baseSchema = z.object({
-  schemaVersion: nullString(z.literal(RECIPE_SCHEMA_VERSION)),
+  schemaVersion: z
+    .union([z.literal("recipe_extraction.v1"), z.literal(RECIPE_SCHEMA_VERSION)])
+    .nullish()
+    .transform((v) => v ?? null),
   status: z.enum(["extracted", "unusable"]),
   sourceUrl: nullString(z.string().url()),
   recipeName: nullString(z.string()),

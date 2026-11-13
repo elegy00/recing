@@ -6,29 +6,10 @@ import { deleteRecipe, getRecipe, retryRecipe } from "../api/recipes";
 import { CookMode } from "../components/organisms/cook-mode/CookMode";
 import { PageHeader } from "../components/organisms/page-header/PageHeader";
 import { RecipeDetail } from "../components/organisms/recipe-detail/RecipeDetail";
-import type { Job, RecipeIngredient, RecipeResult, RecipeStep } from "../types";
+import type { Job } from "../types";
+import { normalizeRecipe } from "../utils/normalize-recipe";
 
 type ViewMode = "detail" | "cook";
-
-/** Convert the API recipe result into display-ready ingredients and steps. */
-function normalizeRecipe(result: RecipeResult): {
-	ingredients: RecipeIngredient[];
-	instructions: RecipeStep[];
-} {
-	return {
-		ingredients: result.ingredients.map((i) => ({
-			quantity: i.quantity ?? undefined,
-			unit: i.unit ?? undefined,
-			name: i.name,
-			note: i.note ?? undefined,
-		})),
-		instructions: result.instructions.map((s) => ({
-			stepNumber: s.stepNumber,
-			text: s.text,
-			timer: s.timer ?? undefined,
-		})),
-	};
-}
 
 export default function RecipeDetailPage() {
 	const { t } = useTranslation();
@@ -84,25 +65,25 @@ export default function RecipeDetailPage() {
 
 	async function onConfirmDelete() {
 		try {
-		if (job?.source === "photo") {
-			await deletePhotoJob({ data: { id } });
-		} else {
-			await deleteRecipe({ data: { id } });
-		}
-		navigate({ to: "/", replace: true });
+			if (job?.source === "photo") {
+				await deletePhotoJob({ data: { id } });
+			} else {
+				await deleteRecipe({ data: { id } });
+			}
+			navigate({ to: "/", replace: true });
 		} catch {
 			setConfirmAction(null);
 		}
 	}
 	async function onConfirmReset() {
 		try {
-		if (job?.source === "photo") {
-			const res = await retryPhotoJob({ data: { id } });
-			if (!res.ok) throw new Error(res.error);
-		} else {
-			await retryRecipe({ data: { id } });
-		}
-		navigate({ to: "/import/queue" });
+			if (job?.source === "photo") {
+				const res = await retryPhotoJob({ data: { id } });
+				if (!res.ok) throw new Error(res.error);
+			} else {
+				await retryRecipe({ data: { id } });
+			}
+			navigate({ to: "/import/queue" });
 		} catch {
 			setConfirmAction(null);
 		}

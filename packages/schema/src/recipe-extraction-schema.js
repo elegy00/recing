@@ -13,8 +13,16 @@ export default {
     "schemaVersion": {
       "anyOf": [
         {
-          "type": "string",
-          "const": "recipe_extraction.v1"
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "recipe_extraction.v1"
+            },
+            {
+              "type": "string",
+              "const": "recipe_extraction.v2"
+            }
+          ]
         },
         {
           "type": "null"
@@ -120,6 +128,7 @@ export default {
       ]
     },
     "keywords": {
+      "default": null,
       "anyOf": [
         {
           "anyOf": [
@@ -221,6 +230,15 @@ export default {
                 "type": "null"
               }
             ]
+          },
+          "substeps": {
+            "default": [],
+            "description": "Ordered sub-steps of this instruction. Each entry is one separate, distinguishable sub-step (e.g. 'a.', 'b.', 'c.' items from the source). Empty array when the step has no sub-steps — never merge several sub-steps into the main text.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "required": [
@@ -249,8 +267,7 @@ export default {
     }
   },
   "required": [
-    "status",
-    "keywords"
+    "status"
   ],
   "additionalProperties": false
 };
